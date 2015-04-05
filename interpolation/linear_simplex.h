@@ -29,13 +29,15 @@ typedef struct
 
 simplex_tree_node * simplex_tree_node_alloc(int dim);
 
-simplex_tree * simplex_tree_alloc(int dim);
+simplex_tree * simplex_tree_alloc(int dim, int n_points);
+
+int simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags);
 
 void simplex_tree_free(simplex_tree *tree);
 
 void simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node);
 
-simplex_tree_accel * simplex_tree_accel_alloc(size_t dim);
+simplex_tree_accel * simplex_tree_accel_alloc(int dim);
 
 void simplex_tree_accel_free(simplex_tree_accel *accel);
 
@@ -53,10 +55,6 @@ simplex_tree_node *_find_leaf(simplex_tree *tree, simplex_tree_node *node,
 int insert_point(simplex_tree *tree, simplex_tree_node *leaf,
                  gsl_matrix *data, gsl_vector *point,
                  simplex_tree_accel *accel);
-
-int build_triangulation(simplex_tree *tree,
-                        gsl_matrix *data,
-                        simplex_tree_accel *accel);
 
 int delauney(simplex_tree *tree, simplex_tree_node *leaf,
              gsl_matrix *data, simplex_tree_accel *accel);

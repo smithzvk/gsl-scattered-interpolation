@@ -70,18 +70,33 @@ simplex_tree_node_alloc(int dim)
 }
 
 simplex_tree *
-simplex_tree_alloc(int dim)
+simplex_tree_alloc(int dim, int n_points)
 {
   int i, j;
 
   simplex_tree *tree = malloc(sizeof(simplex_tree));
   tree->dim = dim;
   tree->seed_points = gsl_matrix_alloc(dim+1, dim);
+
+  tree->n_points = 0;
+
+  simplex_tree_node *node = simplex_tree_node_alloc(dim);
+
+  tree->root = node;
+
+  return tree;
+}
+
+int
+simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags)
+{
   /* Build a regular simplex, see:
      http://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn */
+  int i, dim = tree->dim;
   for (i = 0; i < dim; i++)
     {
       double tot2 = 0;
+      int j;
       for (j = 0; j < i; j++)
         {
           double comp = gsl_matrix_get(tree->seed_points, i, j);
@@ -94,32 +109,37 @@ simplex_tree_alloc(int dim)
       for (j = i+1; j < dim+1; j++)
         gsl_matrix_set(tree->seed_points, j, i, component_for_others);
     }
-  /* Scale the simplex up to a large size.  This is necessary.  Why?  The
-     algorithm is only correct when this is effectively infinity.  No matter how
-     big, this could still cause problems.  Consider a nearly colinear set of
-     points that defines a circle that will encompass a far vertex.  This will
-     cause an edge flip that isn't correct.  However, we can perhaps fix this up
-     in the in_hypersphere function (always return false for the far
-     vertexes). */
+  /* Scale the simplex up to a large size.  Is necessary if we scaled our
+     data? */
   gsl_matrix_scale(tree->seed_points, 1e5);
 
-  tree->n_points = 0;
-
-  simplex_tree_node *node = simplex_tree_node_alloc(dim);
   for (i = 0; i < tree->dim+1; i++)
     {
-      node->points[i] = -(i+1);
+      tree->root->points[i] = -(i+1);
     }
 
-  for (i = 0; i < node->n_links; i++)
+  for (i = 0; i < tree->root->n_links; i++)
     {
       /* This is a special triangle that doesn't have neighbors to consider */
-      node->links[i] = NULL;
+      tree->root->links[i] = NULL;
     }
 
-  tree->root = node;
-
-  return tree;
+  int ret = GSL_SUCCESS;
+  if (data)
+    {
+      simplex_tree_accel *accel = simplex_tree_accel_alloc(dim);
+      for (i = 0; i < data->size1; i++)
+        {
+          gsl_vector_view new_point = gsl_matrix_row(data, i);
+          simplex_tree_node *leaf = find_leaf(tree, data, &(new_point.vector),
+                                              accel);
+          ret = insert_point(tree, leaf, data, &(new_point.vector), accel);
+          if (GSL_SUCCESS != ret)
+            break;
+        }
+      simplex_tree_accel_free(accel);
+    }
+  return ret;
 }
 
 void
@@ -149,7 +169,7 @@ simplex_tree_free(simplex_tree *tree)
 }
 
 simplex_tree_accel *
-simplex_tree_accel_alloc(size_t dim)
+simplex_tree_accel_alloc(int dim)
 {
   simplex_tree_accel *accel = malloc(sizeof(simplex_tree_accel));
   accel->simplex_matrix = gsl_matrix_alloc(dim, dim);
@@ -232,20 +252,6 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
   assert(0);
 }
 
-int
-build_triangulation(simplex_tree *tree, gsl_matrix *data, simplex_tree_accel *accel)
-{
-  int i;
-  for (i = 0; i < data->size1; i++)
-    {
-      gsl_vector_view new_point = gsl_matrix_row(data, i);
-      simplex_tree_node *leaf = find_leaf(tree, data, &(new_point.vector),
-                                          accel);
-      int ret = insert_point(tree, leaf, data, &(new_point.vector), accel);
-      if (GSL_SUCCESS != ret)
-        return ret;
-    }
-}
 
 int
 insert_point(simplex_tree *tree, simplex_tree_node *leaf,

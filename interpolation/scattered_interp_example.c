@@ -23,7 +23,7 @@ int
 main()
 {
   /* Trivial allocating and deallocating a triangulation */
-  simplex_tree *tree = simplex_tree_alloc(2);
+  simplex_tree *tree = simplex_tree_alloc(2, 0);
   simplex_tree_free(tree);
 
   /* Loading the data */
@@ -38,15 +38,11 @@ main()
   simplex_tree_accel *accel = simplex_tree_accel_alloc(2);
 
   /* Test calculate hypersphere */
-  tree = simplex_tree_alloc(2);
+  tree = simplex_tree_alloc(2, 50);
+  simplex_tree_init(tree, NULL, 0);
   calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
-
-  /* Test seed_point in hypersphere */
-  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -1, accel)); */
-  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -2, accel)); */
-  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -3, accel)); */
 
   /* Trivial leaf find */
   double point_vector[2] = {-88, 41};
@@ -98,8 +94,8 @@ main()
 
   simplex_tree_free(tree);
 
-  tree = simplex_tree_alloc(2);
-  build_triangulation(tree, &(data.matrix), accel);
+  tree = simplex_tree_alloc(2, 50);
+  simplex_tree_init(tree, &(data.matrix), 0);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
   res = interp_point(tree, leaf, &(data.matrix), &(response.vector),

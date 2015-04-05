@@ -5,8 +5,8 @@ struct node_list
   struct node_list *next;
 };
 
-void check_leaf_nodes(_simplex_tree *node, struct node_list **seen);
-int in_list(_simplex_tree *node, struct node_list *list);
+void check_leaf_nodes(simplex_tree_node *node, struct node_list **seen);
+int in_list(simplex_tree_node *node, struct node_list *list);
 int cycle(struct node_list *list);
 void free_list(struct node_list *list);
 

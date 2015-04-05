@@ -40,7 +40,7 @@ cycle(struct node_list *list)
 }
 
 int
-in_list(_simplex_tree *node, struct node_list *list)
+in_list(simplex_tree_node *node, struct node_list *list)
 {
   if (!list)
     return 0;
@@ -50,7 +50,7 @@ in_list(_simplex_tree *node, struct node_list *list)
 }
 
 void
-check_leaf_nodes(_simplex_tree *node, struct node_list **seen)
+check_leaf_nodes(simplex_tree_node *node, struct node_list **seen)
 {
   if (!node->leaf_p)
     {
@@ -70,7 +70,7 @@ check_leaf_nodes(_simplex_tree *node, struct node_list **seen)
 
   for (i = 0; i < node->n_links; i++)
     {
-      _simplex_tree *neighbor = node->links[i];
+      simplex_tree_node *neighbor = node->links[i];
       if (neighbor)
         {
           /* Check for forward and reverse linkage */

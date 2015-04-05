@@ -11,39 +11,39 @@
 
 /*
 
-For a thorough discussion of this method, see _Computational Geometry:
-Application and Algorithms_ chapter 9 or _Numerical Recipes: Third Edition_
-section 21.6.  The structure of the triangulation tree is as follows (I use the
-word triangle here, but all of this applies to arbitrary dimensionality):
+  For a thorough discussion of this method, see _Computational Geometry:
+  Application and Algorithms_ chapter 9 or _Numerical Recipes: Third Edition_
+  section 21.6.  The structure of the triangulation tree is as follows (I use the
+  word triangle here, but all of this applies to arbitrary dimensionality):
 
-- This is not actually a tree but much about its use, structure, and properties
+  - This is not actually a tree but much about its use, structure, and properties
   are tree-like, so I call it one.
 
-- Leaf nodes correspond to triangles in the triangulation.  Internal nodes
+  - Leaf nodes correspond to triangles in the triangulation.  Internal nodes
   correspond to triangles that were part of the triangulation at some point in
   the building procedure, but have sense become invalid due to a sub-division
   and/or edge flip.
 
-- The internal nodes form a DAG usually moving from larger to smaller triangles
+  - The internal nodes form a DAG usually moving from larger to smaller triangles
   which you can think of as sub-triangles, but this isn't strictly true due to
   edge flips.
 
-- The leaf nodes don't have sub-triangles, but they do have links to
+  - The leaf nodes don't have sub-triangles, but they do have links to
   neighboring triangles, which is needed to create an efficient building
   algorithm.
 
-- The expected size of this tree will be 9N where N is the number of points, due
+  - The expected size of this tree will be 9N where N is the number of points, due
   to the randomness of the method, this is only expected.  Building the tree is
   expected to take O(N\log N) for a randomized data set (O(n^2) worst case).
   Finding a triangle that contains a point is expected to take O(\log N) time.
 
-A few other notes when interpreting this code.
+  A few other notes when interpreting this code.
 
-- All leaf nodes are linked to their neighbors except for the top-level
+  - All leaf nodes are linked to their neighbors except for the top-level
   triangle, which must be treated specially.  For this triangle, its neighbor
   links are NULL.
 
-- Faces, the things that separate simplexes/triangles, are defined by d unique
+  - Faces, the things that separate simplexes/triangles, are defined by d unique
   points where d is the dimensionality.  In the context of a simplex, a face is
   identified by the index into the d+1 length array of data indexes that is not
   involved with the face.  This face index is the index into the links array.
@@ -55,17 +55,17 @@ A few other notes when interpreting this code.
 #include "linear_simplex.h"
 #include "linear_simplex_integrity_check.h"
 
-_simplex_tree *
+simplex_tree_node *
 alloc_simplex_tree(int dim)
 {
   int i;
-  _simplex_tree *tree = calloc(1, sizeof(simplex_tree));
+  simplex_tree_node *tree = calloc(1, sizeof(simplex_tree));
   tree->n_points = dim+1;
   tree->points = calloc(tree->n_points, sizeof(int));
 
   tree->leaf_p = 1;
   tree->n_links = dim+1;
-  tree->links = calloc(tree->n_links, sizeof(_simplex_tree *));
+  tree->links = calloc(tree->n_links, sizeof(simplex_tree_node *));
   return tree;
 }
 
@@ -91,7 +91,7 @@ initial_simplex_tree(int dim)
 
       double component_for_others = -(1.0/dim + tot2)/chosen_component;
       for (j = i+1; j < dim+1; j++)
-          gsl_matrix_set(tree->seed_points, j, i, component_for_others);
+        gsl_matrix_set(tree->seed_points, j, i, component_for_others);
     }
   /* Scale the simplex up to a large size.  This is necessary.  Why?  The
      algorithm is only correct when this is effectively infinity.  No matter how
@@ -104,25 +104,25 @@ initial_simplex_tree(int dim)
 
   tree->n_points = 0;
 
-  _simplex_tree *_tree = alloc_simplex_tree(dim);
-  for (i = 0; i < _tree->n_points; i++)
+  simplex_tree_node *node = alloc_simplex_tree(dim);
+  for (i = 0; i < node->n_points; i++)
     {
-      _tree->points[i] = -(i+1);
+      node->points[i] = -(i+1);
     }
 
-  for (i = 0; i < _tree->n_links; i++)
+  for (i = 0; i < node->n_links; i++)
     {
       /* This is a special triangle that doesn't have neighbors to consider */
-      _tree->links[i] = NULL;
+      node->links[i] = NULL;
     }
 
-  tree->tree = _tree;
+  tree->root = node;
 
   return tree;
 }
 
 void
-_free_simplex_tree(_simplex_tree *tree)
+_free_simplex_tree(simplex_tree_node *tree)
 {
   int i;
   if (!tree->leaf_p)
@@ -142,7 +142,7 @@ void
 free_simplex_tree(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
-  _free_simplex_tree(tree->tree);
+  _free_simplex_tree(tree->root);
   free(tree);
 }
 
@@ -166,7 +166,7 @@ free_simplex_tree_accel(simplex_tree_accel *accel)
 }
 
 int
-point_in_simplex(simplex_tree *tree, _simplex_tree *node, int point)
+point_in_simplex(simplex_tree *tree, simplex_tree_node *node, int point)
 {
   int dim = node->n_points - 1;
   int i;
@@ -178,13 +178,13 @@ point_in_simplex(simplex_tree *tree, _simplex_tree *node, int point)
   return (i < dim + 1);
 }
 
-_simplex_tree *
+simplex_tree_node *
 find_leaf(simplex_tree *tree, gsl_matrix *data,
           gsl_vector *point,
           simplex_tree_accel *accel)
 {
   simplex_tree_accel *local_accel = accel;
-  size_t d = tree->tree->n_points - 1;
+  size_t d = tree->root->n_points - 1;
   if (!accel)
     {
       local_accel = malloc(sizeof(simplex_tree_accel));
@@ -193,9 +193,9 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
       local_accel->coords = gsl_vector_alloc(d);
     }
 
-  _simplex_tree *ret;
-  if (contains_point(tree, tree->tree, data, point, local_accel))
-    ret = _find_leaf(tree, tree->tree, data, point, local_accel);
+  simplex_tree_node *ret;
+  if (contains_point(tree, tree->root, data, point, local_accel))
+    ret = _find_leaf(tree, tree->root, data, point, local_accel);
   else
     /* Outside the cage.  I should handle this more gracefully.  Insuring that a
        point interpolation will return zero and that a point insertion will be
@@ -212,25 +212,25 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
   return ret;
 }
 
-_simplex_tree *
-_find_leaf(simplex_tree *tree, _simplex_tree *_tree, gsl_matrix *data,
+simplex_tree_node *
+_find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
            gsl_vector *point,
            simplex_tree_accel *accel)
 {
-  if (_tree->leaf_p)
+  if (node->leaf_p)
     {
-      return _tree;
+      return node;
     }
   else
     {
       int i;
-      int d = _tree->n_points-1;
-      for (i = 0; i < _tree->n_links; i++)
+      int d = node->n_points-1;
+      for (i = 0; i < node->n_links; i++)
         {
-          if (_tree->links[i]
-              && contains_point(tree, _tree->links[i], data, point, accel))
+          if (node->links[i]
+              && contains_point(tree, node->links[i], data, point, accel))
             {
-              return _find_leaf(tree, _tree->links[i], data, point, accel);
+              return _find_leaf(tree, node->links[i], data, point, accel);
             }
         }
     }
@@ -242,7 +242,7 @@ _find_leaf(simplex_tree *tree, _simplex_tree *_tree, gsl_matrix *data,
 }
 
 int
-insert_point(simplex_tree *tree, _simplex_tree *leaf,
+insert_point(simplex_tree *tree, simplex_tree_node *leaf,
              gsl_matrix *data, gsl_vector *point,
              simplex_tree_accel *accel)
 {
@@ -252,7 +252,7 @@ insert_point(simplex_tree *tree, _simplex_tree *leaf,
   leaf->leaf_p = 0;
   int dim = leaf->n_points - 1;
 
-  _simplex_tree **new_simplexes = malloc((dim + 1) * sizeof(_simplex_tree*));
+  simplex_tree_node **new_simplexes = malloc((dim + 1) * sizeof(simplex_tree_node*));
 
   /* Allocate $d$ new simplexes */
   int ismplx;
@@ -276,7 +276,7 @@ insert_point(simplex_tree *tree, _simplex_tree *leaf,
   /* Populate external links */
   for (i = 0; i < leaf->n_links; i++)
     {
-      _simplex_tree *neighbor = leaf->links[i];
+      simplex_tree_node *neighbor = leaf->links[i];
       assert(!neighbor || neighbor->leaf_p);
       if (neighbor)
         assert(!point_in_simplex(tree, neighbor, leaf->points[i]));
@@ -314,7 +314,7 @@ insert_point(simplex_tree *tree, _simplex_tree *leaf,
     }
 
   for (i = 0; i < leaf->n_links; i++)
-      leaf->links[i] = new_simplexes[i];
+    leaf->links[i] = new_simplexes[i];
   free(new_simplexes);
 
   tree->n_points++;
@@ -336,42 +336,42 @@ insert_point(simplex_tree *tree, _simplex_tree *leaf,
 
 /*
 
-A few things to note.  We are doing a generalized edge flip.  In 2D, this means
-removing two triangles and replacing them with two new triangles.  In $d$
-dimensions, this corresponds to removing 2 simplexes and replacing them with $d$
-simplexes.  The creation of the new simplexes is relatively simple, but due to
-the book-keeping involved in keeping track of the neighbors (some of which are
-newly created simplexes while others are external, previously existing
-simplexes), this is a bit complex.  This explains the high-level algorithm:
+  A few things to note.  We are doing a generalized edge flip.  In 2D, this means
+  removing two triangles and replacing them with two new triangles.  In $d$
+  dimensions, this corresponds to removing 2 simplexes and replacing them with $d$
+  simplexes.  The creation of the new simplexes is relatively simple, but due to
+  the book-keeping involved in keeping track of the neighbors (some of which are
+  newly created simplexes while others are external, previously existing
+  simplexes), this is a bit complex.  This explains the high-level algorithm:
 
-For each new simplex $\{n f . idx\}$:
+  For each new simplex $\{n f . idx\}$:
 
-External links:
+  External links:
 
-For each point, $i$, on the old separating face $F_n^{(n)} \equiv F_f^{(f)}$,
-define the edge that corresponds to removing $i$ from the face denoted $E_i$
+  For each point, $i$, on the old separating face $F_n^{(n)} \equiv F_f^{(f)}$,
+  define the edge that corresponds to removing $i$ from the face denoted $E_i$
 
-Link two simplexes to the new simplex, on face $F_n' \equiv \{f . E_i\}$ link
-the simplex across $F_i^{(f)}$.  On $F_f' \equiv \{n . E_i\}$ link the simplex
-across $F_i^{(n)}$.
+  Link two simplexes to the new simplex, on face $F_n' \equiv \{f . E_i\}$ link
+  the simplex across $F_i^{(f)}$.  On $F_f' \equiv \{n . E_i\}$ link the simplex
+  across $F_i^{(n)}$.
 
-Internal links:
+  Internal links:
 
-It should be clear that new simplex should link with every other new simplex via
-some face.  This means that there must be $d-1$ internal links from each
-simplex.
+  It should be clear that new simplex should link with every other new simplex via
+  some face.  This means that there must be $d-1$ internal links from each
+  simplex.
 
-For each point, $i$, on the old separating face $F_n^{(n)}$, define the faces
-f_{ij} \equiv \{n f . idx_{-\{i,j\}}\} where $j$ is a index on edge $E_i$ (or,
-equivalently, $j \ne i$).  $f_{ij}$ should link to the new simplex $\{ n f i
-. idx_{-\{j\}} \}$.
+  For each point, $i$, on the old separating face $F_n^{(n)}$, define the faces
+  f_{ij} \equiv \{n f . idx_{-\{i,j\}}\} where $j$ is a index on edge $E_i$ (or,
+  equivalently, $j \ne i$).  $f_{ij}$ should link to the new simplex $\{ n f i
+  . idx_{-\{j\}} \}$.
 
-When building the new simplexes, you need only iterate over them with index $i$.  Then iterate over the edge with index $j$.  Then set links[0] and links[1] to the external simplexes, then set links[j+2] to...
+  When building the new simplexes, you need only iterate over them with index $i$.  Then iterate over the edge with index $j$.  Then set links[0] and links[1] to the external simplexes, then set links[j+2] to...
 
- */
+*/
 
 int
-delaunay(simplex_tree *tree, _simplex_tree *leaf,
+delaunay(simplex_tree *tree, simplex_tree_node *leaf,
          gsl_matrix *data,
          /* face is the index in the simplex that identifies the face */
          int face,
@@ -384,7 +384,7 @@ delaunay(simplex_tree *tree, _simplex_tree *leaf,
   if (!leaf->links[face]) return GSL_SUCCESS;
   assert(leaf->leaf_p);
 
-  _simplex_tree *neighbor = leaf->links[face];
+  simplex_tree_node *neighbor = leaf->links[face];
   assert(neighbor->leaf_p);
 
   /* Find far point */
@@ -404,11 +404,11 @@ delaunay(simplex_tree *tree, _simplex_tree *leaf,
       /* We need to "flip" this face. */
       leaf->leaf_p = 0;
       neighbor->leaf_p = 0;
-      _simplex_tree **new_simplexes = malloc(dim * sizeof(_simplex_tree*));
+      simplex_tree_node **new_simplexes = malloc(dim * sizeof(simplex_tree_node*));
 
       /* Save current neighbors */
-      _simplex_tree **old_neighbors1 = malloc(dim * sizeof(_simplex_tree*));
-      _simplex_tree **old_neighbors2 = malloc(dim * sizeof(_simplex_tree*));
+      simplex_tree_node **old_neighbors1 = malloc(dim * sizeof(simplex_tree_node*));
+      simplex_tree_node **old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
       int *left_out = malloc(dim * sizeof(int));
 
       {
@@ -488,7 +488,7 @@ delaunay(simplex_tree *tree, _simplex_tree *leaf,
           assert(jsmplx < dim || null_option);
 
           {
-            _simplex_tree *ext;
+            simplex_tree_node *ext;
             if (jsmplx < dim)
               ext = new_simplexes[ismplx]->links[0] = old_neighbors2[jsmplx];
             else
@@ -521,7 +521,7 @@ delaunay(simplex_tree *tree, _simplex_tree *leaf,
           assert(jsmplx < dim || null_option);
 
           {
-            _simplex_tree *ext;
+            simplex_tree_node *ext;
             if (jsmplx < dim)
               ext = new_simplexes[ismplx]->links[1] = old_neighbors1[jsmplx];
             else
@@ -599,7 +599,7 @@ dnrm22(gsl_vector *v)
 }
 
 int
-in_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
+in_hypersphere(simplex_tree *tree, simplex_tree_node *node,
                gsl_matrix *data,
                int idx, simplex_tree_accel *accel)
 {
@@ -608,7 +608,7 @@ in_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
   /* if (idx < 0) */
   /*   return 0; */
 
-  gsl_vector *x0 = gsl_vector_alloc(_tree->n_points-1);
+  gsl_vector *x0 = gsl_vector_alloc(node->n_points-1);
   double r2;
 
   gsl_vector_view point;
@@ -617,7 +617,7 @@ in_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
   else
     point = gsl_matrix_row(data, idx);
 
-  calculate_hypersphere(tree, _tree, data, x0, &r2, accel);
+  calculate_hypersphere(tree, node, data, x0, &r2, accel);
 
   /* Compute the displacement vector */
   gsl_vector_sub(x0, &(point.vector));
@@ -632,13 +632,13 @@ in_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
    particular, Dr. John S. Eickemeyer's suggestion) on how to do this in a way
    that generalizes to arbitrary dimensionality. */
 int
-calculate_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
+calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
                       gsl_matrix *data,
                       gsl_vector *x0, double *r2,
                       simplex_tree_accel *accel)
 {
   int i, j;
-  int d = _tree->n_points-1;
+  int d = node->n_points-1;
   accel->current_simplex = NULL;
 
   for (i = 0; i < d; i++)
@@ -646,8 +646,8 @@ calculate_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
       gsl_vector_set(accel->coords, i, 0);
 
       gsl_vector_view vi, vi1;
-      int vi_idx = _tree->points[i];
-      int vi1_idx = _tree->points[i+1];
+      int vi_idx = node->points[i];
+      int vi1_idx = node->points[i+1];
 
       if (vi_idx < 0)
         vi = gsl_matrix_row(tree->seed_points, -vi_idx - 1);
@@ -676,7 +676,7 @@ calculate_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
                       accel->coords, x0);
 
   gsl_vector_view first_point;
-  int idx = _tree->points[0];
+  int idx = node->points[0];
   if (idx < 0)
     first_point = gsl_matrix_row(tree->seed_points, -idx - 1);
   else
@@ -692,30 +692,30 @@ calculate_hypersphere(simplex_tree *tree, _simplex_tree *_tree,
 }
 
 int
-calculate_bary_coords(simplex_tree *tree, _simplex_tree *_tree, gsl_matrix *data,
+calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
                       gsl_vector *point,
                       simplex_tree_accel *accel)
 {
   assert(accel != NULL);
-  int d = _tree->n_points-1;
+  int d = node->n_points-1;
   gsl_vector_view x0;
-  int x0_idx= _tree->points[d];
+  int x0_idx= node->points[d];
 
   if (x0_idx < 0)
     x0 = gsl_matrix_row(tree->seed_points, -x0_idx - 1);
   else
     x0 = gsl_matrix_row(data, x0_idx);
 
-  if (_tree != accel->current_simplex)
+  if (node != accel->current_simplex)
     {
-      accel->current_simplex = _tree;
+      accel->current_simplex = node;
 
       int i, j;
 
       for (i = 0; i < d; i++)
         {
           gsl_vector_view p;
-          int xi_idx = _tree->points[i];
+          int xi_idx = node->points[i];
           if (xi_idx < 0)
             p = gsl_matrix_row(tree->seed_points, -xi_idx - 1);
           else
@@ -741,14 +741,14 @@ calculate_bary_coords(simplex_tree *tree, _simplex_tree *_tree, gsl_matrix *data
 }
 
 int
-contains_point(simplex_tree *tree, _simplex_tree *_tree,
+contains_point(simplex_tree *tree, simplex_tree_node *node,
                gsl_matrix *data, gsl_vector *point,
                simplex_tree_accel *accel)
 {
   int i;
-  int d = _tree->n_points-1;
+  int d = node->n_points-1;
 
-  calculate_bary_coords(tree, _tree, data, point, accel);
+  calculate_bary_coords(tree, node, data, point, accel);
 
   double tot = 0;
   for (i = 0; i < d; i++)
@@ -764,7 +764,7 @@ contains_point(simplex_tree *tree, _simplex_tree *_tree,
 }
 
 double
-interp_point(simplex_tree *tree, _simplex_tree *leaf,
+interp_point(simplex_tree *tree, simplex_tree_node *leaf,
              gsl_matrix *data, gsl_vector *response, gsl_vector *point,
              simplex_tree_accel *accel)
 {

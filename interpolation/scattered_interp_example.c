@@ -39,19 +39,19 @@ main()
 
   /* Test calculate hypersphere */
   tree = initial_simplex_tree(2);
-  calculate_hypersphere(tree, tree->tree, &(data.matrix),
+  calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
 
   /* Test seed_point in hypersphere */
-  /* assert(0 == in_hypersphere(tree, tree->tree, &(data.matrix), -1, accel)); */
-  /* assert(0 == in_hypersphere(tree, tree->tree, &(data.matrix), -2, accel)); */
-  /* assert(0 == in_hypersphere(tree, tree->tree, &(data.matrix), -3, accel)); */
+  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -1, accel)); */
+  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -2, accel)); */
+  /* assert(0 == in_hypersphere(tree, tree->root, &(data.matrix), -3, accel)); */
 
   /* Trivial leaf find */
   double point_vector[2] = {-88, 41};
   gsl_vector_view point = gsl_vector_view_array(point_vector, 2);
-  _simplex_tree *leaf = find_leaf(tree, &(data.matrix), &(point.vector), NULL);
+  simplex_tree_node *leaf = find_leaf(tree, &(data.matrix), &(point.vector), NULL);
 
   /* Test trivial interpolation */
   assert(0 == interp_point(tree, leaf, &(data.matrix), &(response.vector),
@@ -75,7 +75,7 @@ main()
   assert(-1 == leaf->links[2]->points[1]);
   assert(-2 == leaf->links[2]->points[2]);
 
-  assert(1 == in_hypersphere(tree, tree->tree, &(data.matrix), 0, accel));
+  assert(1 == in_hypersphere(tree, tree->root, &(data.matrix), 0, accel));
 
   /* Finding the containing triangle */
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);

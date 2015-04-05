@@ -63,6 +63,7 @@ alloc_simplex_tree_node(int dim)
   tree->points = malloc((dim+1) * sizeof(int));
 
   tree->leaf_p = 1;
+  tree->flipped = 0;
   tree->n_links = dim+1;
   tree->links = malloc(tree->n_links * sizeof(simplex_tree_node *));
   return tree;
@@ -122,15 +123,16 @@ alloc_simplex_tree(int dim)
 }
 
 void
-free_simplex_tree_node(simplex_tree_node *node)
+free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node)
 {
   int i;
-  if (!node->leaf_p)
+  int dim = tree->dim;
+  if (!node->leaf_p && !(node->flipped && (node < node->links[dim])))
     {
       for (i = 0; i < node->n_links; i++)
         {
           if (node->links[i])
-            free_simplex_tree_node(node->links[i]);
+            free_simplex_tree_node(tree, node->links[i]);
         }
     }
   free(node->points);
@@ -142,7 +144,7 @@ void
 free_simplex_tree(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
-  free_simplex_tree_node(tree->root);
+  free_simplex_tree_node(tree, tree->root);
   free(tree);
 }
 
@@ -387,14 +389,18 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
     }
   assert(far < neighbor->n_links);
 
+  int ret = 0;
   if (in_hypersphere(tree, leaf, data, neighbor->points[far], accel))
     {
+      ret = 1;
       /* This should always be true as you will never flip an edge in 1D */
       assert(dim > 1);
 
       /* We need to "flip" this face. */
       leaf->leaf_p = 0;
       neighbor->leaf_p = 0;
+      leaf->flipped = 1;
+      neighbor->flipped = 1;
       simplex_tree_node **new_simplexes = malloc(dim * sizeof(simplex_tree_node*));
 
       /* Save current neighbors */
@@ -555,6 +561,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
           leaf->links[i] = new_simplexes[i];
           neighbor->links[i] = new_simplexes[i];
         }
+      leaf->links[dim] = neighbor;
+      neighbor->links[dim] = leaf;
+
       free(new_simplexes);
       free(old_neighbors1);
       free(old_neighbors2);
@@ -566,13 +575,19 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         for (i = 0; i < dim+1; i++)
           {
             if (!leaf->links[ismplx]->links[i]) continue;
-            int ret = delaunay(tree, leaf->links[ismplx]->links[i], data, i, accel);
-            if (GSL_SUCCESS != ret)
-              return ret;
+            int subret = delaunay(tree, leaf->links[ismplx]->links[i], data, i, accel);
+            if (1 == subret)
+              /* The rest of the flips were done in the recursion */
+              break;
+            if (-1 == subret)
+              /* Something went wrong, return an error */
+              return subret;
+            /* The return must have been 0, continue */
+            assert(subret == 0);
           }
     }
 
-  return GSL_SUCCESS;
+  return ret;
 }
 
 inline double

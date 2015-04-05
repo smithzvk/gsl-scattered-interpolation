@@ -6,7 +6,7 @@ typedef struct simplex_tree_node_struct
      a leaf. */
   struct simplex_tree_node_struct **links;
   /* Mark if this is a leaf or not */
-  char leaf_p;
+  char leaf_p, flipped;
   /* Extents O(d) numbers*/
   char n_links;
 } simplex_tree_node;
@@ -33,7 +33,7 @@ simplex_tree * alloc_simplex_tree(int dim);
 
 void free_simplex_tree(simplex_tree *tree);
 
-void free_simplex_tree_node(simplex_tree_node *node);
+void free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node);
 
 simplex_tree_accel *alloc_simplex_tree_accel(size_t dim);
 

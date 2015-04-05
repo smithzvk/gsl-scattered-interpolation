@@ -50,18 +50,18 @@ in_list(simplex_tree_node *node, struct node_list *list)
 }
 
 void
-check_leaf_nodes(simplex_tree_node *node, struct node_list **seen)
+check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list **seen)
 {
   if (!node->leaf_p)
     {
-      check_leaf_nodes(node->links[0], seen);
+      check_leaf_nodes(tree, node->links[0], seen);
       return;
     }
   int i;
   /* General leaf health */
   int j, k;
-  for (j = 0; j < node->n_points; j++)
-    for (k = j+1; k < node->n_points; k++)
+  for (j = 0; j < tree->dim+1; j++)
+    for (k = j+1; k < tree->dim+1; k++)
       {
         assert(node->points[k] != node->points[j]);
         assert(node->links[k] != node);
@@ -88,7 +88,7 @@ check_leaf_nodes(simplex_tree_node *node, struct node_list **seen)
           if (!in_list(neighbor, *seen))
             {
               *seen = cons(neighbor, *seen);
-              check_leaf_nodes(neighbor, seen);
+              check_leaf_nodes(tree, neighbor, seen);
             }
         }
     }

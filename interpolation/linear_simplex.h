@@ -8,14 +8,15 @@ typedef struct simplex_tree_node_struct
   /* Mark if this is a leaf or not */
   char leaf_p;
   /* Extents O(d) numbers*/
-  char n_points, n_links;
+  char n_links;
 } simplex_tree_node;
 
 typedef struct simplex_tree_struct
 {
   simplex_tree_node *root;
   gsl_matrix *seed_points;
-  size_t n_points;
+  int n_points;
+  int dim;
 } simplex_tree;
 
 typedef struct

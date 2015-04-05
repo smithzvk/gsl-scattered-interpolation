@@ -146,6 +146,8 @@ main()
     }
   fclose(plot);
 
+  gsl_matrix_free(grid);
+  free_simplex_tree(tree);
+  free_simplex_tree_accel(accel);
   return 0;
-
 }

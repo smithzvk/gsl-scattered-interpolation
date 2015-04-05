@@ -185,13 +185,7 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
 {
   simplex_tree_accel *local_accel = accel;
   int dim = tree->dim;
-  if (!accel)
-    {
-      local_accel = malloc(sizeof(simplex_tree_accel));
-      local_accel->simplex_matrix = gsl_matrix_alloc(dim, dim);
-      local_accel->perm = gsl_permutation_alloc(dim);
-      local_accel->coords = gsl_vector_alloc(dim);
-    }
+  if (!accel) local_accel = alloc_simplex_tree_accel(dim);
 
   simplex_tree_node *ret;
   if (contains_point(tree, tree->root, data, point, local_accel))
@@ -202,13 +196,8 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
        meaningful would be enough. */
     assert(0);
 
-  if (!accel)
-    {
-      gsl_matrix_free(local_accel->simplex_matrix);
-      gsl_permutation_free(local_accel->perm);
-      gsl_vector_free(local_accel->coords);
-      free(local_accel);
-    }
+  if (!accel) free_simplex_tree_accel(local_accel);
+
   return ret;
 }
 

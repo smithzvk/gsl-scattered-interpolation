@@ -59,13 +59,13 @@ simplex_tree_node *
 alloc_simplex_tree(int dim)
 {
   int i;
-  simplex_tree_node *tree = calloc(1, sizeof(simplex_tree));
+  simplex_tree_node *tree = malloc(sizeof(simplex_tree));
   tree->n_points = dim+1;
-  tree->points = calloc(tree->n_points, sizeof(int));
+  tree->points = malloc(tree->n_points * sizeof(int));
 
   tree->leaf_p = 1;
   tree->n_links = dim+1;
-  tree->links = calloc(tree->n_links, sizeof(simplex_tree_node *));
+  tree->links = malloc(tree->n_links * sizeof(simplex_tree_node *));
   return tree;
 }
 
@@ -75,7 +75,7 @@ initial_simplex_tree(int dim)
   int i, j;
 
   simplex_tree *tree = malloc(sizeof(simplex_tree));
-  tree->seed_points = gsl_matrix_calloc(dim+1, dim);
+  tree->seed_points = gsl_matrix_alloc(dim+1, dim);
   /* Build a regular simplex, see:
      http://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn */
   for (i = 0; i < dim; i++)

@@ -56,7 +56,7 @@
 #include "linear_simplex_integrity_check.h"
 
 simplex_tree_node *
-alloc_simplex_tree(int dim)
+alloc_simplex_tree_node(int dim)
 {
   int i;
   simplex_tree_node *tree = malloc(sizeof(simplex_tree));
@@ -69,7 +69,7 @@ alloc_simplex_tree(int dim)
 }
 
 simplex_tree *
-initial_simplex_tree(int dim)
+alloc_simplex_tree(int dim)
 {
   int i, j;
 
@@ -104,7 +104,7 @@ initial_simplex_tree(int dim)
 
   tree->n_points = 0;
 
-  simplex_tree_node *node = alloc_simplex_tree(dim);
+  simplex_tree_node *node = alloc_simplex_tree_node(dim);
   for (i = 0; i < tree->dim+1; i++)
     {
       node->points[i] = -(i+1);
@@ -122,27 +122,27 @@ initial_simplex_tree(int dim)
 }
 
 void
-_free_simplex_tree(simplex_tree_node *tree)
+free_simplex_tree_node(simplex_tree_node *node)
 {
   int i;
-  if (!tree->leaf_p)
+  if (!node->leaf_p)
     {
-      for (i = 0; i < tree->n_links; i++)
+      for (i = 0; i < node->n_links; i++)
         {
-          if (tree->links[i])
-            _free_simplex_tree(tree->links[i]);
+          if (node->links[i])
+            free_simplex_tree_node(node->links[i]);
         }
     }
-  free(tree->points);
-  free(tree->links);
-  free(tree);
+  free(node->points);
+  free(node->links);
+  free(node);
 }
 
 void
 free_simplex_tree(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
-  _free_simplex_tree(tree->root);
+  free_simplex_tree_node(tree->root);
   free(tree);
 }
 
@@ -258,7 +258,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   int ismplx;
   for (ismplx = 0; ismplx < dim + 1; ismplx++)
     {
-      new_simplexes[ismplx] = alloc_simplex_tree(dim);
+      new_simplexes[ismplx] = alloc_simplex_tree_node(dim);
     }
 
   /* Populate the indexes in the newly created leaf nodes */
@@ -436,7 +436,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       int ismplx;
       for (ismplx = 0; ismplx < dim; ismplx++)
         {
-          new_simplexes[ismplx] = alloc_simplex_tree(dim);
+          new_simplexes[ismplx] = alloc_simplex_tree_node(dim);
         }
 
       /* Set points on simplexes */

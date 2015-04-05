@@ -23,7 +23,7 @@ int
 main()
 {
   /* Trivial allocating and deallocating a triangulation */
-  simplex_tree *tree = initial_simplex_tree(2);
+  simplex_tree *tree = alloc_simplex_tree(2);
   free_simplex_tree(tree);
 
   /* Loading the data */
@@ -38,7 +38,7 @@ main()
   simplex_tree_accel *accel = alloc_simplex_tree_accel(2);
 
   /* Test calculate hypersphere */
-  tree = initial_simplex_tree(2);
+  tree = alloc_simplex_tree(2);
   calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);

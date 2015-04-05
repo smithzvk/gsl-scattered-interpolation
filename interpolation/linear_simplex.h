@@ -27,13 +27,13 @@ typedef struct
   simplex_tree_node *current_simplex;
 } simplex_tree_accel;
 
-simplex_tree_node * alloc_simplex_tree(int dim);
+simplex_tree_node * alloc_simplex_tree_node(int dim);
 
-simplex_tree * initial_simplex_tree(int dim);
+simplex_tree * alloc_simplex_tree(int dim);
 
 void free_simplex_tree(simplex_tree *tree);
 
-void _free_simplex_tree(simplex_tree_node *tree);
+void free_simplex_tree_node(simplex_tree_node *node);
 
 simplex_tree_accel *alloc_simplex_tree_accel(size_t dim);
 

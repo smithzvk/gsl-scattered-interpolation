@@ -233,6 +233,21 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
 }
 
 int
+build_triangulation(simplex_tree *tree, gsl_matrix *data, simplex_tree_accel *accel)
+{
+  int i;
+  for (i = 0; i < data->size1; i++)
+    {
+      gsl_vector_view new_point = gsl_matrix_row(data, i);
+      simplex_tree_node *leaf = find_leaf(tree, data, &(new_point.vector),
+                                          accel);
+      int ret = insert_point(tree, leaf, data, &(new_point.vector), accel);
+      if (GSL_SUCCESS != ret)
+        return ret;
+    }
+}
+
+int
 insert_point(simplex_tree *tree, simplex_tree_node *leaf,
              gsl_matrix *data, gsl_vector *point,
              simplex_tree_accel *accel)

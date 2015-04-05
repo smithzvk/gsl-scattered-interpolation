@@ -96,6 +96,15 @@ main()
   double res = interp_point(tree, leaf, &(data.matrix), &(response.vector),
                             &(point.vector), accel);
 
+  free_simplex_tree(tree);
+
+  tree = alloc_simplex_tree(2);
+  build_triangulation(tree, &(data.matrix), accel);
+
+  leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
+  res = interp_point(tree, leaf, &(data.matrix), &(response.vector),
+                     &(point.vector), accel);
+
   /* Gridding data */
   double min[] = {1000000, 1000000};
   double max[] = {-1000000, -1000000};

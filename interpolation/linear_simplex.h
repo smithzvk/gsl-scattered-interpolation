@@ -54,6 +54,10 @@ int insert_point(simplex_tree *tree, simplex_tree_node *leaf,
                  gsl_matrix *data, gsl_vector *point,
                  simplex_tree_accel *accel);
 
+int build_triangulation(simplex_tree *tree,
+                        gsl_matrix *data,
+                        simplex_tree_accel *accel);
+
 int delauney(simplex_tree *tree, simplex_tree_node *leaf,
              gsl_matrix *data, simplex_tree_accel *accel);
 

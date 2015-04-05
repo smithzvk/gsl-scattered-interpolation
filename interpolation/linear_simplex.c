@@ -56,7 +56,7 @@
 #include "linear_simplex_integrity_check.h"
 
 simplex_tree_node *
-alloc_simplex_tree_node(int dim)
+simplex_tree_node_alloc(int dim)
 {
   int i;
   simplex_tree_node *tree = malloc(sizeof(simplex_tree));
@@ -70,7 +70,7 @@ alloc_simplex_tree_node(int dim)
 }
 
 simplex_tree *
-alloc_simplex_tree(int dim)
+simplex_tree_alloc(int dim)
 {
   int i, j;
 
@@ -105,7 +105,7 @@ alloc_simplex_tree(int dim)
 
   tree->n_points = 0;
 
-  simplex_tree_node *node = alloc_simplex_tree_node(dim);
+  simplex_tree_node *node = simplex_tree_node_alloc(dim);
   for (i = 0; i < tree->dim+1; i++)
     {
       node->points[i] = -(i+1);
@@ -123,7 +123,7 @@ alloc_simplex_tree(int dim)
 }
 
 void
-free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node)
+simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node)
 {
   int i;
   int dim = tree->dim;
@@ -132,7 +132,7 @@ free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node)
       for (i = 0; i < node->n_links; i++)
         {
           if (node->links[i])
-            free_simplex_tree_node(tree, node->links[i]);
+            simplex_tree_node_free(tree, node->links[i]);
         }
     }
   free(node->points);
@@ -141,15 +141,15 @@ free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node)
 }
 
 void
-free_simplex_tree(simplex_tree *tree)
+simplex_tree_free(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
-  free_simplex_tree_node(tree, tree->root);
+  simplex_tree_node_free(tree, tree->root);
   free(tree);
 }
 
 simplex_tree_accel *
-alloc_simplex_tree_accel(size_t dim)
+simplex_tree_accel_alloc(size_t dim)
 {
   simplex_tree_accel *accel = malloc(sizeof(simplex_tree_accel));
   accel->simplex_matrix = gsl_matrix_alloc(dim, dim);
@@ -159,7 +159,7 @@ alloc_simplex_tree_accel(size_t dim)
 }
 
 void
-free_simplex_tree_accel(simplex_tree_accel *accel)
+simplex_tree_accel_free(simplex_tree_accel *accel)
 {
   gsl_matrix_free(accel->simplex_matrix);
   gsl_permutation_free(accel->perm);
@@ -187,7 +187,7 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
 {
   simplex_tree_accel *local_accel = accel;
   int dim = tree->dim;
-  if (!accel) local_accel = alloc_simplex_tree_accel(dim);
+  if (!accel) local_accel = simplex_tree_accel_alloc(dim);
 
   simplex_tree_node *ret;
   if (contains_point(tree, tree->root, data, point, local_accel))
@@ -198,7 +198,7 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
        meaningful would be enough. */
     assert(0);
 
-  if (!accel) free_simplex_tree_accel(local_accel);
+  if (!accel) simplex_tree_accel_free(local_accel);
 
   return ret;
 }
@@ -264,7 +264,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   int ismplx;
   for (ismplx = 0; ismplx < dim + 1; ismplx++)
     {
-      new_simplexes[ismplx] = alloc_simplex_tree_node(dim);
+      new_simplexes[ismplx] = simplex_tree_node_alloc(dim);
     }
 
   /* Populate the indexes in the newly created leaf nodes */
@@ -446,7 +446,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       int ismplx;
       for (ismplx = 0; ismplx < dim; ismplx++)
         {
-          new_simplexes[ismplx] = alloc_simplex_tree_node(dim);
+          new_simplexes[ismplx] = simplex_tree_node_alloc(dim);
         }
 
       /* Set points on simplexes */

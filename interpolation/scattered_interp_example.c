@@ -23,8 +23,8 @@ int
 main()
 {
   /* Trivial allocating and deallocating a triangulation */
-  simplex_tree *tree = alloc_simplex_tree(2);
-  free_simplex_tree(tree);
+  simplex_tree *tree = simplex_tree_alloc(2);
+  simplex_tree_free(tree);
 
   /* Loading the data */
 #include "weather_data.c"
@@ -35,10 +35,10 @@ main()
   double sphere_center[] = {0, 0};
   gsl_vector_view center_vector = gsl_vector_view_array(sphere_center, 2);
   double r2;
-  simplex_tree_accel *accel = alloc_simplex_tree_accel(2);
+  simplex_tree_accel *accel = simplex_tree_accel_alloc(2);
 
   /* Test calculate hypersphere */
-  tree = alloc_simplex_tree(2);
+  tree = simplex_tree_alloc(2);
   calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
@@ -96,9 +96,9 @@ main()
   double res = interp_point(tree, leaf, &(data.matrix), &(response.vector),
                             &(point.vector), accel);
 
-  free_simplex_tree(tree);
+  simplex_tree_free(tree);
 
-  tree = alloc_simplex_tree(2);
+  tree = simplex_tree_alloc(2);
   build_triangulation(tree, &(data.matrix), accel);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
@@ -156,7 +156,7 @@ main()
   fclose(plot);
 
   gsl_matrix_free(grid);
-  free_simplex_tree(tree);
-  free_simplex_tree_accel(accel);
+  simplex_tree_free(tree);
+  simplex_tree_accel_free(accel);
   return 0;
 }

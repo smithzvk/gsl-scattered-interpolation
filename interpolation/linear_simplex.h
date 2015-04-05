@@ -27,17 +27,17 @@ typedef struct
   simplex_tree_node *current_simplex;
 } simplex_tree_accel;
 
-simplex_tree_node * alloc_simplex_tree_node(int dim);
+simplex_tree_node * simplex_tree_node_alloc(int dim);
 
-simplex_tree * alloc_simplex_tree(int dim);
+simplex_tree * simplex_tree_alloc(int dim);
 
-void free_simplex_tree(simplex_tree *tree);
+void simplex_tree_free(simplex_tree *tree);
 
-void free_simplex_tree_node(simplex_tree *tree, simplex_tree_node *node);
+void simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node);
 
-simplex_tree_accel *alloc_simplex_tree_accel(size_t dim);
+simplex_tree_accel * simplex_tree_accel_alloc(size_t dim);
 
-void free_simplex_tree_accel(simplex_tree_accel *accel);
+void simplex_tree_accel_free(simplex_tree_accel *accel);
 
 int point_in_simplex(simplex_tree *tree, simplex_tree_node *node, int point);
 

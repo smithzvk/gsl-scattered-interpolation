@@ -6,6 +6,7 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_interpsc.h>
+#include <gsl/gsl_rng.h>
 #include "linear_simplex.h"
 
 /* Some cool things to do:
@@ -23,7 +24,7 @@ int
 main()
 {
   /* Trivial allocating and deallocating a triangulation */
-  simplex_tree *tree = simplex_tree_alloc(2, 0);
+  simplex_tree *tree = simplex_tree_alloc(2, 10);
   simplex_tree_free(tree);
 
   /* Loading the data */
@@ -39,7 +40,7 @@ main()
 
   /* Test calculate hypersphere */
   tree = simplex_tree_alloc(2, 50);
-  simplex_tree_init(tree, NULL, 0);
+  simplex_tree_init(tree, NULL, 0, NULL);
   calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
@@ -95,7 +96,11 @@ main()
   simplex_tree_free(tree);
 
   tree = simplex_tree_alloc(2, 50);
-  simplex_tree_init(tree, &(data.matrix), 0);
+
+  gsl_rng_env_setup();
+  gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
+  simplex_tree_init(tree, &(data.matrix), 0, rng);
+  gsl_rng_free(rng);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
   res = interp_point(tree, leaf, &(data.matrix), &(response.vector),

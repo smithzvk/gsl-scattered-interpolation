@@ -4,10 +4,13 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_permutation.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_interpsc.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
+
 
 /*
 
@@ -91,15 +94,18 @@ simplex_tree_alloc(int dim, int n_points)
   tree->old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
   tree->left_out = malloc(dim * sizeof(int));
 
+  tree->shuffle = gsl_permutation_alloc(n_points);
+
   return tree;
 }
 
 int
-simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags)
+simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
+                  int init_flags, gsl_rng *rng)
 {
+  int i, dim = tree->dim;
   /* Build a regular simplex, see:
      http://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn */
-  int i, dim = tree->dim;
   for (i = 0; i < dim; i++)
     {
       double tot2 = 0;
@@ -131,14 +137,19 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags)
       tree->root->links[i] = NULL;
     }
 
+  gsl_permutation_init(tree->shuffle);
+  if (rng)
+    gsl_ran_shuffle(rng, tree->shuffle->data, data->size1, sizeof(size_t));
+
   int ret = GSL_SUCCESS;
   if (data)
     {
       for (i = 0; i < data->size1; i++)
         {
-          gsl_vector_view new_point = gsl_matrix_row(data, i);
-          simplex_tree_node *leaf = find_leaf(tree, data, &(new_point.vector),
-                                              tree->accel);
+          gsl_vector_view new_point
+            = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, i));
+          simplex_tree_node *leaf
+            = find_leaf(tree, data, &(new_point.vector), tree->accel);
           ret = insert_point(tree, leaf, data, &(new_point.vector),
                              tree->accel);
           if (GSL_SUCCESS != ret)
@@ -176,6 +187,8 @@ simplex_tree_free(simplex_tree *tree)
   free(tree->old_neighbors1);
   free(tree->old_neighbors2);
   free(tree->left_out);
+  gsl_permutation_free(tree->shuffle);
+
   free(tree);
 }
 
@@ -260,7 +273,6 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
      would be a useful fall-back. */
   assert(0);
 }
-
 
 int
 insert_point(simplex_tree *tree, simplex_tree_node *leaf,
@@ -645,7 +657,7 @@ in_hypersphere(simplex_tree *tree, simplex_tree_node *node,
   if (idx < 0)
     point = gsl_matrix_row(tree->seed_points, -idx - 1);
   else
-    point = gsl_matrix_row(data, idx);
+    point = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, idx));
 
   calculate_hypersphere(tree, node, data, x0, &r2, accel);
 
@@ -682,12 +694,12 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
       if (vi_idx < 0)
         vi = gsl_matrix_row(tree->seed_points, -vi_idx - 1);
       else
-        vi = gsl_matrix_row(data, vi_idx);
+        vi = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi_idx));
 
       if (vi1_idx < 0)
         vi1 = gsl_matrix_row(tree->seed_points, -vi1_idx - 1);
       else
-        vi1 = gsl_matrix_row(data, vi1_idx);
+          vi1 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi1_idx));
 
       for (j = 0; j < dim; j++)
         {
@@ -710,7 +722,7 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
   if (idx < 0)
     first_point = gsl_matrix_row(tree->seed_points, -idx - 1);
   else
-    first_point = gsl_matrix_row(data, idx);
+    first_point = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, idx));
 
   gsl_vector_memcpy(accel->coords, &(first_point.vector));
   /* Why doesn't this work? */
@@ -734,7 +746,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
   if (x0_idx < 0)
     x0 = gsl_matrix_row(tree->seed_points, -x0_idx - 1);
   else
-    x0 = gsl_matrix_row(data, x0_idx);
+    x0 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, x0_idx));
 
   if (node != accel->current_simplex)
     {
@@ -749,7 +761,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
           if (xi_idx < 0)
             p = gsl_matrix_row(tree->seed_points, -xi_idx - 1);
           else
-            p = gsl_matrix_row(data, xi_idx);
+            p = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, xi_idx));
           for (j = 0; j < dim; j++)
             {
               gsl_matrix_set(accel->simplex_matrix, j, i,
@@ -813,11 +825,17 @@ interp_point(simplex_tree *tree, simplex_tree_node *leaf,
       int xi_idx = leaf->points[i];
       /* Only add a contribution if the point isn't a seed point */
       if (xi_idx >= 0)
-        interp += coord * gsl_vector_get(response, xi_idx);
+        {
+          xi_idx = gsl_permutation_get(tree->shuffle, xi_idx);
+          interp += coord * gsl_vector_get(response, xi_idx);
+        }
     }
   int idx = leaf->points[dim];
   /* Only add a contribution if the point isn't a seed point */
   if (idx >= 0)
-    interp += (1 - tot) * gsl_vector_get(response, idx);
+    {
+      idx = gsl_permutation_get(tree->shuffle, idx);
+      interp += (1 - tot) * gsl_vector_get(response, idx);
+    }
   return interp;
 }

@@ -1,3 +1,4 @@
+#include <gsl/gsl_rng.h>
 
 typedef struct simplex_tree_node_struct
 {
@@ -25,6 +26,7 @@ typedef struct simplex_tree_struct
   gsl_matrix *seed_points;
   int n_points;
   int dim;
+  gsl_permutation *shuffle;
   simplex_tree_accel *accel;
   simplex_tree_node **new_simplexes;
   simplex_tree_node **old_neighbors1;
@@ -36,7 +38,8 @@ simplex_tree_node * simplex_tree_node_alloc(int dim);
 
 simplex_tree * simplex_tree_alloc(int dim, int n_points);
 
-int simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags);
+int simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
+                      int init_flags, gsl_rng *rng);
 
 void simplex_tree_free(simplex_tree *tree);
 

@@ -86,6 +86,11 @@ simplex_tree_alloc(int dim, int n_points)
 
   tree->accel = simplex_tree_accel_alloc(dim);
 
+  tree->new_simplexes = malloc((dim+1) * sizeof(simplex_tree_node*));
+  tree->old_neighbors1 = malloc(dim * sizeof(simplex_tree_node*));
+  tree->old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
+  tree->left_out = malloc(dim * sizeof(int));
+
   return tree;
 }
 
@@ -167,6 +172,10 @@ simplex_tree_free(simplex_tree *tree)
   gsl_matrix_free(tree->seed_points);
   simplex_tree_node_free(tree, tree->root);
   simplex_tree_accel_free(tree->accel);
+  free(tree->new_simplexes);
+  free(tree->old_neighbors1);
+  free(tree->old_neighbors2);
+  free(tree->left_out);
   free(tree);
 }
 
@@ -264,7 +273,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   leaf->leaf_p = 0;
   int dim = tree->dim;
 
-  simplex_tree_node **new_simplexes = malloc((dim + 1) * sizeof(simplex_tree_node*));
+  simplex_tree_node **new_simplexes = tree->new_simplexes;
 
   /* Allocate $d$ new simplexes */
   int ismplx;
@@ -327,7 +336,6 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
 
   for (i = 0; i < leaf->n_links; i++)
     leaf->links[i] = new_simplexes[i];
-  free(new_simplexes);
 
   tree->n_points++;
 
@@ -422,13 +430,13 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       neighbor->leaf_p = 0;
       leaf->flipped = 1;
       neighbor->flipped = 1;
-      simplex_tree_node **new_simplexes = malloc(dim * sizeof(simplex_tree_node*));
+
+      simplex_tree_node **new_simplexes = tree->new_simplexes;
+      simplex_tree_node **old_neighbors1 = tree->old_neighbors1;
+      simplex_tree_node **old_neighbors2 = tree->old_neighbors2;
+      int *left_out = tree->left_out;
 
       /* Save current neighbors */
-      simplex_tree_node **old_neighbors1 = malloc(dim * sizeof(simplex_tree_node*));
-      simplex_tree_node **old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
-      int *left_out = malloc(dim * sizeof(int));
-
       {
         int k = 0;
         int ok = 0;
@@ -584,11 +592,6 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         }
       leaf->links[dim] = neighbor;
       neighbor->links[dim] = leaf;
-
-      free(new_simplexes);
-      free(old_neighbors1);
-      free(old_neighbors2);
-      free(left_out);
 
       /* Now, recursively check the new external faces as they could now also
          need edge flips */

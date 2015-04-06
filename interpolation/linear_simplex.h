@@ -11,14 +11,6 @@ typedef struct simplex_tree_node_struct
   char n_links;
 } simplex_tree_node;
 
-typedef struct simplex_tree_struct
-{
-  simplex_tree_node *root;
-  gsl_matrix *seed_points;
-  int n_points;
-  int dim;
-} simplex_tree;
-
 typedef struct
 {
   gsl_matrix *simplex_matrix;
@@ -26,6 +18,15 @@ typedef struct
   gsl_vector *coords;
   simplex_tree_node *current_simplex;
 } simplex_tree_accel;
+
+typedef struct simplex_tree_struct
+{
+  simplex_tree_node *root;
+  gsl_matrix *seed_points;
+  int n_points;
+  int dim;
+  simplex_tree_accel *accel;
+} simplex_tree;
 
 simplex_tree_node * simplex_tree_node_alloc(int dim);
 

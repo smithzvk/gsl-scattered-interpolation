@@ -84,6 +84,8 @@ simplex_tree_alloc(int dim, int n_points)
 
   tree->root = node;
 
+  tree->accel = simplex_tree_accel_alloc(dim);
+
   return tree;
 }
 
@@ -127,17 +129,16 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data, int init_flags)
   int ret = GSL_SUCCESS;
   if (data)
     {
-      simplex_tree_accel *accel = simplex_tree_accel_alloc(dim);
       for (i = 0; i < data->size1; i++)
         {
           gsl_vector_view new_point = gsl_matrix_row(data, i);
           simplex_tree_node *leaf = find_leaf(tree, data, &(new_point.vector),
-                                              accel);
-          ret = insert_point(tree, leaf, data, &(new_point.vector), accel);
+                                              tree->accel);
+          ret = insert_point(tree, leaf, data, &(new_point.vector),
+                             tree->accel);
           if (GSL_SUCCESS != ret)
             break;
         }
-      simplex_tree_accel_free(accel);
     }
   return ret;
 }
@@ -165,6 +166,7 @@ simplex_tree_free(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
   simplex_tree_node_free(tree, tree->root);
+  simplex_tree_accel_free(tree->accel);
   free(tree);
 }
 
@@ -207,7 +209,7 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
 {
   simplex_tree_accel *local_accel = accel;
   int dim = tree->dim;
-  if (!accel) local_accel = simplex_tree_accel_alloc(dim);
+  if (!accel) local_accel = tree->accel;
 
   simplex_tree_node *ret;
   if (contains_point(tree, tree->root, data, point, local_accel))
@@ -217,8 +219,6 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
        point interpolation will return zero and that a point insertion will be
        meaningful would be enough. */
     assert(0);
-
-  if (!accel) simplex_tree_accel_free(local_accel);
 
   return ret;
 }

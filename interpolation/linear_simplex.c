@@ -259,7 +259,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
              simplex_tree_accel *accel)
 {
   int i, j;
-  assert(accel);
+  if (!accel) accel = tree->accel;
   assert(leaf->leaf_p);
   leaf->leaf_p = 0;
   int dim = tree->dim;
@@ -723,7 +723,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
                       gsl_vector *point,
                       simplex_tree_accel *accel)
 {
-  assert(accel != NULL);
+  if (!accel) accel = tree->accel;
   int dim = tree->dim;
   gsl_vector_view x0;
   int x0_idx= node->points[dim];

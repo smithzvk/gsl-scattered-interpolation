@@ -72,6 +72,24 @@ simplex_tree_node_alloc(int dim)
   return tree;
 }
 
+void
+simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node)
+{
+  int i;
+  int dim = tree->dim;
+  if (!node->leaf_p && !(node->flipped && (node < node->links[dim])))
+    {
+      for (i = 0; i < node->n_links; i++)
+        {
+          if (node->links[i])
+            simplex_tree_node_free(tree, node->links[i]);
+        }
+    }
+  free(node->points);
+  free(node->links);
+  free(node);
+}
+
 simplex_tree *
 simplex_tree_alloc(int dim, int n_points)
 {
@@ -97,6 +115,21 @@ simplex_tree_alloc(int dim, int n_points)
   tree->shuffle = gsl_permutation_alloc(n_points);
 
   return tree;
+}
+
+void
+simplex_tree_free(simplex_tree *tree)
+{
+  gsl_matrix_free(tree->seed_points);
+  simplex_tree_node_free(tree, tree->root);
+  simplex_tree_accel_free(tree->accel);
+  free(tree->new_simplexes);
+  free(tree->old_neighbors1);
+  free(tree->old_neighbors2);
+  free(tree->left_out);
+  gsl_permutation_free(tree->shuffle);
+
+  free(tree);
 }
 
 int
@@ -157,39 +190,6 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
         }
     }
   return ret;
-}
-
-void
-simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node)
-{
-  int i;
-  int dim = tree->dim;
-  if (!node->leaf_p && !(node->flipped && (node < node->links[dim])))
-    {
-      for (i = 0; i < node->n_links; i++)
-        {
-          if (node->links[i])
-            simplex_tree_node_free(tree, node->links[i]);
-        }
-    }
-  free(node->points);
-  free(node->links);
-  free(node);
-}
-
-void
-simplex_tree_free(simplex_tree *tree)
-{
-  gsl_matrix_free(tree->seed_points);
-  simplex_tree_node_free(tree, tree->root);
-  simplex_tree_accel_free(tree->accel);
-  free(tree->new_simplexes);
-  free(tree->old_neighbors1);
-  free(tree->old_neighbors2);
-  free(tree->left_out);
-  gsl_permutation_free(tree->shuffle);
-
-  free(tree);
 }
 
 simplex_tree_accel *

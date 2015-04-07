@@ -358,6 +358,9 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   /* Now fix the Delaunay condition */
   for (i = 0; i < leaf->n_links; i++)
     {
+      /* Only check if this is a leaf (if it isn't a leaf then we have surely
+         already looked at it) */
+      if (!leaf->links[i]->leaf_p) continue;
       delaunay(tree, leaf->links[i], data, 0, accel);
       check_leaf_nodes(tree, leaf->links[0], &seen);
       free_list(seen); seen = NULL;

@@ -8,6 +8,7 @@
 #include <gsl/gsl_interpsc.h>
 #include <gsl/gsl_rng.h>
 #include "linear_simplex.h"
+#include "linear_simplex_integrity_check.h"
 
 /* Some cool things to do:
 
@@ -19,6 +20,30 @@
    experienced by a car as it drives along a path.
 
 */
+
+FILE *triangle_plot;
+gsl_matrix *gdata;
+
+void output_lines(simplex_tree *tree, simplex_tree_node *node)
+{
+  int i;
+  for (i = 0; i < tree->dim + 1; i++)
+    {
+      int i1 = node->points[i];
+      int i2 = node->points[(i+1)%(tree->dim + 1)];
+      if (i1 < 0 || i2 < 0) continue;
+      gsl_vector_view p1
+        = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
+      gsl_vector_view p2
+        = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
+      fprintf(triangle_plot,
+              "%g %g 0\n%g %g 0\n\n",
+              gsl_vector_get(&(p1.vector), 0),
+              gsl_vector_get(&(p1.vector), 1),
+              gsl_vector_get(&(p2.vector), 0),
+              gsl_vector_get(&(p2.vector), 1));
+    }
+}
 
 int
 main()
@@ -146,6 +171,13 @@ main()
           gsl_matrix_set(grid, i, j, res);
         }
     }
+
+  triangle_plot = fopen("/tmp/lines.dat", "w");
+  gdata = &(data.matrix);
+  struct node_list *seen = NULL;
+  check_leaf_nodes(tree, tree->root, &seen, output_lines);
+  free_list(seen);
+  fclose(triangle_plot);
 
   FILE *plot = fopen("/tmp/plot.dat", "w");
   for (i = 0; i < n_grid; i++)

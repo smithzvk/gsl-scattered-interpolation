@@ -50,13 +50,16 @@ in_list(simplex_tree_node *node, struct node_list *list)
 }
 
 void
-check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list **seen)
+check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list **seen,
+                 void (*fn)(simplex_tree *, simplex_tree_node *))
 {
   if (!node->leaf_p)
     {
-      check_leaf_nodes(tree, node->links[0], seen);
+      check_leaf_nodes(tree, node->links[0], seen, fn);
       return;
     }
+
+  if (fn) (*fn)(tree, node);
   int i;
   /* General leaf health */
   int j, k;
@@ -88,7 +91,7 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
           if (!in_list(neighbor, *seen))
             {
               *seen = cons(neighbor, *seen);
-              check_leaf_nodes(tree, neighbor, seen);
+              check_leaf_nodes(tree, neighbor, seen, fn);
             }
         }
     }

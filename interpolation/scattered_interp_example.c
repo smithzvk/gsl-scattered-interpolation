@@ -22,17 +22,23 @@
 */
 
 FILE *triangle_plot;
+FILE *circle_plot;
 gsl_matrix *gdata;
 gsl_vector *gresponse;
 
-void output_lines(simplex_tree *tree, simplex_tree_node *node)
+void output_lines_and_circles(simplex_tree *tree, simplex_tree_node *node)
 {
   int i;
+  int fringe = 0;
   for (i = 0; i < tree->dim + 1; i++)
     {
       int i1 = node->points[i];
       int i2 = node->points[(i+1)%(tree->dim + 1)];
-      if (i1 < 0 || i2 < 0) continue;
+      if (i1 < 0 || i2 < 0)
+        {
+          fringe = 1;
+          continue;
+        }
       gsl_vector_view p1
         = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
       gsl_vector_view p2
@@ -46,6 +52,15 @@ void output_lines(simplex_tree *tree, simplex_tree_node *node)
               gsl_vector_get(&(p2.vector), 1),
               gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2)));
     }
+  if (fringe) return;
+  gsl_vector *x0 = gsl_vector_alloc(tree->dim);
+  double r2;
+  calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
+  fprintf(circle_plot, "%g %g %g\n",
+          gsl_vector_get(x0, 0),
+          gsl_vector_get(x0, 1),
+          sqrt(r2));
+  gsl_vector_free(x0);
 }
 
 int
@@ -162,12 +177,14 @@ main()
     }
 
   triangle_plot = fopen("/tmp/lines.dat", "w");
+  circle_plot = fopen("/tmp/circles.dat", "w");
   gdata = &(data.matrix);
   gresponse = &(response.vector);
   struct node_list *seen = NULL;
-  check_leaf_nodes(tree, tree->root, &seen, output_lines);
+  check_leaf_nodes(tree, tree->root, &seen, output_lines_and_circles);
   free_list(seen);
   fclose(triangle_plot);
+  fclose(circle_plot);
 
   FILE *plot = fopen("/tmp/plot.dat", "w");
   for (i = 0; i < n_grid; i++)
@@ -193,6 +210,15 @@ main()
      ...or, if you prefer in 3d:
 
      gnuplot> unset view; replot
+
+     To plot just the triangulation:
+
+     gnuplot> plot '/tmp/lines.dat' w lines
+
+     ...and to draw with the circles:
+
+     gnuplot> set size ratio -1
+     gnuplot> plot '/tmp/circles.dat' w circles, '/tmp/lines.dat' w lines
 
   */
 

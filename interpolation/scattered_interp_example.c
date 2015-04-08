@@ -23,6 +23,7 @@
 
 FILE *triangle_plot;
 gsl_matrix *gdata;
+gsl_vector *gresponse;
 
 void output_lines(simplex_tree *tree, simplex_tree_node *node)
 {
@@ -37,11 +38,13 @@ void output_lines(simplex_tree *tree, simplex_tree_node *node)
       gsl_vector_view p2
         = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
       fprintf(triangle_plot,
-              "%g %g 0\n%g %g 0\n\n",
+              "%g %g %g\n%g %g %g\n\n\n",
               gsl_vector_get(&(p1.vector), 0),
               gsl_vector_get(&(p1.vector), 1),
+              gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1)),
               gsl_vector_get(&(p2.vector), 0),
-              gsl_vector_get(&(p2.vector), 1));
+              gsl_vector_get(&(p2.vector), 1),
+              gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2)));
     }
 }
 
@@ -122,6 +125,8 @@ main()
 
   tree = simplex_tree_alloc(2, 50);
 
+  double min[] = {-86, 41};
+  double max[] = {-90, 43.5};
   gsl_rng_env_setup();
   gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
   simplex_tree_init(tree, &(data.matrix), 0, rng);
@@ -132,37 +137,21 @@ main()
                      &(point.vector), accel);
 
   /* Gridding data */
-  double min[] = {1000000, 1000000};
-  double max[] = {-1000000, -1000000};
-  int j;
-  for (i = 0; i < 50; i++)
-    {
-      for (j = 0; j < data.matrix.size2; j++)
-        {
-          int val = gsl_matrix_get(&(data.matrix), i, j);
-          if (min[j] > val)
-            min[j] = val;
-          if (max[j] < val)
-            max[j] = val;
-        }
-    }
-
   int n_grid = 100;
 
   gsl_matrix *grid = gsl_matrix_alloc(n_grid, n_grid);
   double x, y;
-  double overscan = .5;
+  double xrange = (max[0]-min[0]);
+  double xstep = xrange/n_grid;
+  double yrange = (max[1]-min[1]);
+  double ystep = yrange/n_grid;
   for (i = 0; i < n_grid; i++)
     {
-      double xrange = (max[0]-min[0]);
-      double xstep = xrange/n_grid;
-      x = min[0] - overscan*xrange + (1 + 3*overscan)*xstep * i;
+      x = min[0] + xstep * i;
       gsl_vector_set(&(point.vector), 0, x);
       for (j = 0; j < n_grid; j++)
         {
-          double yrange = (max[1]-min[1]);
-          double ystep = yrange/n_grid;
-          y = min[1] - overscan*yrange + (1 + 3*overscan)*ystep * j;
+          y = min[1] + ystep * j;
 
           gsl_vector_set(&(point.vector), 1, y);
           leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
@@ -174,6 +163,7 @@ main()
 
   triangle_plot = fopen("/tmp/lines.dat", "w");
   gdata = &(data.matrix);
+  gresponse = &(response.vector);
   struct node_list *seen = NULL;
   check_leaf_nodes(tree, tree->root, &seen, output_lines);
   free_list(seen);
@@ -182,11 +172,29 @@ main()
   FILE *plot = fopen("/tmp/plot.dat", "w");
   for (i = 0; i < n_grid; i++)
     {
-      gsl_vector_view row = gsl_matrix_row(grid, i);
-      gsl_vector_fprintf(plot, &(row.vector), "%g");
+      for (j = 0; j < n_grid; j++)
+        {
+          fprintf(plot, "%g %g %g\n",
+                  min[0] + xstep * i,
+                  min[1] + ystep * j,
+                  gsl_matrix_get(grid, i, j));
+        }
       fprintf(plot, "\n");
     }
   fclose(plot);
+
+  /* Plot the data and the triangulation with Gnuplot using:
+
+     gnuplot> set size ratio -1
+     gnuplot> set view map
+     gnuplot> unset key
+     gnuplot> splot '/tmp/plot.dat' with pm3d, '/tmp/lines.dat' w lines
+
+     ...or, if you prefer in 3d:
+
+     gnuplot> unset view; replot
+
+  */
 
   gsl_matrix_free(grid);
   simplex_tree_free(tree);

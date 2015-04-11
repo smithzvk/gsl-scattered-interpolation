@@ -26,6 +26,10 @@ typedef struct simplex_tree_struct
   gsl_matrix *seed_points;
   int n_points;
   int dim;
+  gsl_vector *shift;
+  gsl_vector *scale;
+  gsl_vector *min;
+  gsl_vector *max;
   gsl_permutation *shuffle;
   simplex_tree_accel *accel;
   simplex_tree_node **new_simplexes;
@@ -38,8 +42,18 @@ simplex_tree_node * simplex_tree_node_alloc(int dim);
 
 simplex_tree * simplex_tree_alloc(int dim, int n_points);
 
+#define SIMPLEX_TREE_DEFAULT 0
+/* #define SIMPLEX_TREE_NORANDOMIZE (1 << 0) */
+#define SIMPLEX_TREE_NOSTANDARDIZE (1 << 0)
+#define SIMPLEX_TREE_ISOSCALE (1 << 1)
+/* This should only be used when doing interpolation, should it should be part
+   of the initialization of that workspace. */
+/* #define SIMPLEX_TREE_REMOVE_LINEAR */
+
 int simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
+                      gsl_vector *min, gsl_vector *max,
                       int init_flags, gsl_rng *rng);
+
 
 void simplex_tree_free(simplex_tree *tree);
 

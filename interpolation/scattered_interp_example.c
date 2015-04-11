@@ -29,30 +29,52 @@ gsl_vector *gresponse;
 void output_lines_and_circles(simplex_tree *tree, simplex_tree_node *node)
 {
   int i;
-  int fringe = 0;
   for (i = 0; i < tree->dim + 1; i++)
     {
       int i1 = node->points[i];
       int i2 = node->points[(i+1)%(tree->dim + 1)];
-      if (i1 < 0 || i2 < 0)
+
+      gsl_vector_view p1, p2;
+      double r1, r2;
+      if (i1 < 0)
         {
-          fringe = 1;
-          continue;
+          p1 = gsl_matrix_row(tree->seed_points, -i1 - 1);
+          r1 = 0;
         }
-      gsl_vector_view p1
-        = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
-      gsl_vector_view p2
-        = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
+      else
+        {
+          p1 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
+          r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
+        }
+
+      if (i2 < 0)
+        {
+          p2 = gsl_matrix_row(tree->seed_points, -i2 - 1);
+          r2 = 0;
+        }
+      else
+        {
+          p2 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
+          r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
+        }
+
       fprintf(triangle_plot,
               "%g %g %g\n%g %g %g\n\n\n",
-              gsl_vector_get(&(p1.vector), 0),
-              gsl_vector_get(&(p1.vector), 1),
-              gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1)),
-              gsl_vector_get(&(p2.vector), 0),
-              gsl_vector_get(&(p2.vector), 1),
-              gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2)));
+              gsl_vector_get(tree->scale, 0)
+              * (gsl_vector_get(&(p1.vector), 0)
+                 - gsl_vector_get(tree->shift, 0)),
+              gsl_vector_get(tree->scale, 1)
+              * (gsl_vector_get(&(p1.vector), 1)
+                 - gsl_vector_get(tree->shift, 1)),
+              r1,
+              gsl_vector_get(tree->scale, 0)
+              * (gsl_vector_get(&(p2.vector), 0)
+                 - gsl_vector_get(tree->shift, 0)),
+              gsl_vector_get(tree->scale, 1)
+              * (gsl_vector_get(&(p2.vector), 1)
+                 - gsl_vector_get(tree->shift, 1)),
+              r2);
     }
-  if (fringe) return;
   gsl_vector *x0 = gsl_vector_alloc(tree->dim);
   double r2;
   calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
@@ -83,7 +105,7 @@ main()
 
   /* Test calculate hypersphere */
   tree = simplex_tree_alloc(2, 50);
-  simplex_tree_init(tree, NULL, 0, NULL);
+  simplex_tree_init(tree, NULL, NULL, NULL, SIMPLEX_TREE_NOSTANDARDIZE, NULL);
   calculate_hypersphere(tree, tree->root, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
@@ -140,11 +162,12 @@ main()
 
   tree = simplex_tree_alloc(2, 50);
 
-  double min[] = {-86, 41};
-  double max[] = {-90, 43.5};
+  double min[] = {-89.6763, 40.9479};
+  double max[] = {-86.303, 43.20};
+
   gsl_rng_env_setup();
   gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
-  simplex_tree_init(tree, &(data.matrix), 0, rng);
+  simplex_tree_init(tree, &(data.matrix), NULL, NULL, 0, rng);
   gsl_rng_free(rng);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
@@ -164,6 +187,7 @@ main()
     {
       x = min[0] + xstep * i;
       gsl_vector_set(&(point.vector), 0, x);
+      int j;
       for (j = 0; j < n_grid; j++)
         {
           y = min[1] + ystep * j;
@@ -189,6 +213,7 @@ main()
   FILE *plot = fopen("/tmp/plot.dat", "w");
   for (i = 0; i < n_grid; i++)
     {
+      int j;
       for (j = 0; j < n_grid; j++)
         {
           fprintf(plot, "%g %g %g\n",

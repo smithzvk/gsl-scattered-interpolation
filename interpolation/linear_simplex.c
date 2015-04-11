@@ -98,20 +98,20 @@ simplex_tree_alloc(int dim, int n_points)
   simplex_tree *tree = malloc(sizeof(simplex_tree));
   tree->dim = dim;
   tree->seed_points = gsl_matrix_alloc(dim+1, dim);
-
   tree->n_points = 0;
 
   simplex_tree_node *node = simplex_tree_node_alloc(dim);
-
   tree->root = node;
 
   tree->accel = simplex_tree_accel_alloc(dim);
-
   tree->new_simplexes = malloc((dim+1) * sizeof(simplex_tree_node*));
   tree->old_neighbors1 = malloc(dim * sizeof(simplex_tree_node*));
   tree->old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
   tree->left_out = malloc(dim * sizeof(int));
-
+  tree->shift = gsl_vector_alloc(dim);
+  tree->scale = gsl_vector_alloc(dim);
+  tree->min = gsl_vector_alloc(dim);
+  tree->max = gsl_vector_alloc(dim);
   tree->shuffle = gsl_permutation_alloc(n_points);
 
   return tree;
@@ -127,6 +127,10 @@ simplex_tree_free(simplex_tree *tree)
   free(tree->old_neighbors1);
   free(tree->old_neighbors2);
   free(tree->left_out);
+  free(tree->shift);
+  free(tree->scale);
+  free(tree->min);
+  free(tree->max);
   gsl_permutation_free(tree->shuffle);
 
   free(tree);
@@ -134,9 +138,81 @@ simplex_tree_free(simplex_tree *tree)
 
 int
 simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
+                  gsl_vector *min, gsl_vector *max,
                   int init_flags, gsl_rng *rng)
 {
   int i, dim = tree->dim;
+
+  assert(data || (min && max) || (init_flags & SIMPLEX_TREE_NOSTANDARDIZE));
+  if (init_flags & SIMPLEX_TREE_NOSTANDARDIZE)
+    {
+      for (i = 0; i < dim; i++)
+        {
+          gsl_vector_set(tree->shift, i, 0);
+          gsl_vector_set(tree->scale, i, 1);
+        }
+    }
+  else if (min && max)
+    {
+      for (i = 0; i < dim; i++)
+        {
+          double min_val = gsl_vector_get(min, i);
+          double max_val = gsl_vector_get(max, i);
+          gsl_vector_set(tree->shift, i, (min_val + max_val)/2.0);
+          if (max_val - min_val <= 0)
+            /* Something is wrong, but last ditch effort to make this work */
+            gsl_vector_set(tree->scale, i, 1.0);
+          else
+            gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
+        }
+    }
+  else if (data && (!min || !max))
+    {
+      for (i = 0; i < dim; i++)
+        {
+          if (min)
+            gsl_vector_set(tree->min, i, gsl_vector_get(min, i));
+          else
+            gsl_vector_set(tree->min, i, gsl_matrix_get(data, 0, i));
+
+          if (max)
+            gsl_vector_set(tree->max, i, gsl_vector_get(max, i));
+          else
+            gsl_vector_set(tree->max, i, gsl_matrix_get(data, 0, i));
+        }
+
+      for (i = 1; i < data->size1; i++)
+        {
+          int j;
+          for (j = 0; j < dim; j++)
+            {
+              double val = gsl_matrix_get(data, i, j);
+              if (!min && val < gsl_vector_get(tree->min, j))
+                gsl_vector_set(tree->min, j, val);
+              if (!max && val > gsl_vector_get(tree->max, j))
+                gsl_vector_set(tree->max, j, val);
+            }
+        }
+      for (i = 0; i < dim; i++)
+        {
+          double min_val = gsl_vector_get(tree->min, i);
+          double max_val = gsl_vector_get(tree->max, i);
+          gsl_vector_set(tree->shift, i, (min_val + max_val)/2.0);
+          if (max_val - min_val <= 0)
+            /* Something is wrong, but last ditch effort to make this work */
+            gsl_vector_set(tree->scale, i, 1.0);
+          else
+            gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
+        }
+    }
+  else
+    {
+      /* You need to either provide a min and max, or provide some
+         representative data to infer one from, or tell the algorithm to not
+         standardize with SIMPLEX_TREE_NOSTANDARDIZE. */
+      return GSL_FAILURE;
+    }
+
   /* Build a regular simplex, see:
      http://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn */
   for (i = 0; i < dim; i++)
@@ -155,9 +231,17 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
       for (j = i+1; j < dim+1; j++)
         gsl_matrix_set(tree->seed_points, j, i, component_for_others);
     }
-  /* Scale the simplex up to a large size.  Is necessary if we scaled our
-     data? */
-  gsl_matrix_scale(tree->seed_points, 1e5);
+  /* Scale the simplex up to a large size.  Is necessary if we scaled our data? */
+  /* gsl_matrix_scale(tree->seed_points, 3e2); */
+  gsl_matrix_scale(tree->seed_points, 10);
+  /* We also apply the inverse of the shift and scale to these points as it
+     simplifies the implementation. */
+  for (i = 0; i < tree->dim+1; i++)
+    {
+      gsl_vector_view v = gsl_matrix_row(tree->seed_points, i);
+      gsl_vector_div(&(v.vector), tree->scale);
+      gsl_vector_add(&(v.vector), tree->shift);
+    }
 
   for (i = 0; i < tree->dim+1; i++)
     {
@@ -614,15 +698,8 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         for (i = 0; i < dim+1; i++)
           {
             if (!leaf->links[ismplx]->links[i]) continue;
-            int subret = delaunay(tree, leaf->links[ismplx]->links[i], data, i, accel);
-            if (1 == subret)
-              /* The rest of the flips were done in the recursion */
-              break;
-            if (-1 == subret)
-              /* Something went wrong, return an error */
-              return subret;
-            /* The return must have been 0, continue */
-            assert(subret == 0);
+            delaunay(tree, leaf->links[ismplx]->links[i], data, i, accel);
+            if (leaf->links[ismplx]->flipped) break;
           }
     }
 
@@ -664,10 +741,17 @@ in_hypersphere(simplex_tree *tree, simplex_tree_node *node,
 
   calculate_hypersphere(tree, node, data, x0, &r2, accel);
 
-  /* Compute the displacement vector */
-  gsl_vector_sub(x0, &(point.vector));
-
-  double dist2 = dnrm22(x0);
+  /* Compute the square magnitude of displacement */
+  double dist2 = 0;
+  int i;
+  for (i = 0; i < tree->dim; i++)
+    {
+      double comp = (gsl_vector_get(tree->scale, i)
+                     * (gsl_vector_get(&(point.vector), i)
+                        - gsl_vector_get(tree->shift, i)));
+      double val = comp - gsl_vector_get(x0, i);
+      dist2 += val*val;
+    }
 
   gsl_vector_free(x0);
   return dist2 < r2;
@@ -702,12 +786,16 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
       if (vi1_idx < 0)
         vi1 = gsl_matrix_row(tree->seed_points, -vi1_idx - 1);
       else
-          vi1 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi1_idx));
+        vi1 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi1_idx));
 
       for (j = 0; j < dim; j++)
         {
-          double pij = gsl_vector_get(&(vi.vector), j);
-          double pij1 = gsl_vector_get(&(vi1.vector), j);
+          double pij = (gsl_vector_get(tree->scale, j)
+                        * (gsl_vector_get(&(vi.vector), j)
+                           - gsl_vector_get(tree->shift, j)));
+          double pij1 = (gsl_vector_get(tree->scale, j)
+                        * (gsl_vector_get(&(vi1.vector), j)
+                           - gsl_vector_get(tree->shift, j)));
           gsl_vector_set(accel->coords, i, (gsl_vector_get(accel->coords, i)
                                             + pij*pij - pij1*pij1));
           gsl_matrix_set(accel->simplex_matrix, i, j, pij - pij1);
@@ -730,6 +818,8 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
   gsl_vector_memcpy(accel->coords, &(first_point.vector));
   /* Why doesn't this work? */
   /* gsl_blas_daxpy(-1, x0, accel->coords); */
+  gsl_vector_sub(accel->coords, tree->shift);
+  gsl_vector_mul(accel->coords, tree->scale);
   gsl_vector_sub(accel->coords, x0);
   *r2 = dnrm22(accel->coords);
 
@@ -744,7 +834,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
   if (!accel) accel = tree->accel;
   int dim = tree->dim;
   gsl_vector_view x0;
-  int x0_idx= node->points[dim];
+  int x0_idx = node->points[dim];
 
   if (x0_idx < 0)
     x0 = gsl_matrix_row(tree->seed_points, -x0_idx - 1);
@@ -767,9 +857,13 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
             p = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, xi_idx));
           for (j = 0; j < dim; j++)
             {
-              gsl_matrix_set(accel->simplex_matrix, j, i,
-                             gsl_vector_get(&(p.vector), j)
-                             - gsl_vector_get(&(x0.vector), j));
+              double pv = (gsl_vector_get(tree->scale, j)
+                           * (gsl_vector_get(&(p.vector), j)
+                              - gsl_vector_get(tree->shift, j)));
+              double xv = (gsl_vector_get(tree->scale, j)
+                           * (gsl_vector_get(&(x0.vector), j)
+                              - gsl_vector_get(tree->shift, j)));
+              gsl_matrix_set(accel->simplex_matrix, j, i, pv-xv);
             }
         }
 
@@ -780,6 +874,8 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
   gsl_vector *pp = gsl_vector_alloc(dim);
   gsl_vector_memcpy(pp, point);
   gsl_vector_sub(pp, &(x0.vector));
+  gsl_vector_mul(pp, tree->scale);
+
   gsl_linalg_LU_solve(accel->simplex_matrix, accel->perm, pp, accel->coords);
   gsl_vector_free(pp);
   return GSL_SUCCESS;

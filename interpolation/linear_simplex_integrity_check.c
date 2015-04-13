@@ -59,6 +59,8 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
       return;
     }
 
+  *seen = cons(node, *seen);
+
   if (fn) (*fn)(tree, node);
   int i;
   /* General leaf health */
@@ -86,11 +88,11 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
           for (k = 0; k < neighbor->n_links; k++)
             assert(node->points[k] != neighbor->points[j]);
 
-          /* Recurse but only if we haven't seen this node yet */
+          /* Basic sanity check, is the list corrupt */
           assert(!cycle(*seen));
+          /* Recurse but only if we haven't seen this node yet */
           if (!in_list(neighbor, *seen))
             {
-              *seen = cons(neighbor, *seen);
               check_leaf_nodes(tree, neighbor, seen, fn);
             }
         }

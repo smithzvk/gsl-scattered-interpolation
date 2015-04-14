@@ -12,3 +12,4 @@ int in_list(simplex_tree_node *node, struct node_list *list);
 int cycle(struct node_list *list);
 void free_list(struct node_list *list);
 
+int check_delaunay(simplex_tree *tree, gsl_matrix *data);

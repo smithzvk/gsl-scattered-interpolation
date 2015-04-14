@@ -106,3 +106,5 @@ double interp_point(simplex_tree *tree, simplex_tree_node *_leaf,
                     gsl_vector *response,
                     gsl_vector *point,
                     simplex_tree_accel *accel);
+
+inline double dnrm22(gsl_vector *v);

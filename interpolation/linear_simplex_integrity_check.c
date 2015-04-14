@@ -98,3 +98,39 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
         }
     }
 }
+
+gsl_matrix *gdata;
+
+void
+_check_delaunay(simplex_tree *tree, simplex_tree_node *node)
+{
+  int i;
+  gsl_vector *x0 = gsl_vector_alloc(tree->dim);
+  double r2;
+  calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
+
+  /* Check every point to see if any lie within the sphere. */
+  gsl_vector *pp = gsl_vector_alloc(tree->dim);
+  for (i = 0; i < tree->n_points; i++)
+    {
+      gsl_vector_view p = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i));
+      gsl_vector_memcpy(pp, &(p.vector));
+      gsl_vector_sub(pp, tree->shift);
+      gsl_vector_mul(pp, tree->scale);
+      gsl_vector_sub(pp, x0);
+      double mag2 = dnrm22(pp);
+      assert(mag2 > r2 - 1e-3);
+    }
+  gsl_vector_free(pp);
+  gsl_vector_free(x0);
+}
+
+int
+check_delaunay(simplex_tree *tree, gsl_matrix *data)
+{
+  gdata = data;
+  struct node_list *seen = NULL;
+  check_leaf_nodes(tree, tree->root, &seen, _check_delaunay);
+  free_list(seen); seen = NULL;
+  return 1;
+}

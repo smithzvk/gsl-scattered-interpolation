@@ -465,6 +465,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
       check_leaf_nodes(tree, leaf->links[0], &seen, NULL);
       free_list(seen); seen = NULL;
     }
+  check_delaunay(tree, data);
 
   return GSL_SUCCESS;
 }

@@ -231,9 +231,25 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
       for (j = i+1; j < dim+1; j++)
         gsl_matrix_set(tree->seed_points, j, i, component_for_others);
     }
-  /* Scale the simplex up to a large size.  Is necessary if we scaled our data? */
-  /* gsl_matrix_scale(tree->seed_points, 3e2); */
-  gsl_matrix_scale(tree->seed_points, 10);
+
+  /* We scale up the caging simplex such that the radius of the inscribed sphere
+     is larger than the maximum extent in any direction (which is .5 in this
+     scaled space). The inscribed spheres radius is the altitude of the simplex
+     divided by d+1 (see http://math.stackexchange.com/a/165433 or
+     http://math.stackexchange.com/a/165390 for instance). */
+  double radius;
+  {
+    double altitude = (gsl_matrix_get(tree->seed_points, 0, 0)
+                       - gsl_matrix_get(tree->seed_points, 1, 0));
+    radius = altitude/(dim+1);
+  }
+
+  /* We then scale it up by a factor of 1000.  This ensures that the method is
+     robust to moderate outliers (points that are not within the min to max
+     range as derived from the data or the min and max parameters).  This is
+     arbitrary, but a useful safety net. */
+  gsl_matrix_scale(tree->seed_points, 1000/radius);
+
   /* We also apply the inverse of the shift and scale to these points as it
      simplifies the implementation. */
   for (i = 0; i < tree->dim+1; i++)

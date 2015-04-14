@@ -200,6 +200,19 @@ main()
         }
     }
 
+  FILE *points = fopen("/tmp/points.dat", "w");
+  for (i = 0; i < data.matrix.size1; i++)
+    {
+      fprintf(points, "%g %g\n",
+              gsl_vector_get(tree->scale, 0)
+              * (gsl_matrix_get(&(data.matrix), i, 0)
+                 - gsl_vector_get(tree->shift, 0)),
+              gsl_vector_get(tree->scale, 1)
+              * (gsl_matrix_get(&(data.matrix), i, 1)
+                 - gsl_vector_get(tree->shift, 1)));
+    }
+  fclose(points);
+
   triangle_plot = fopen("/tmp/lines.dat", "w");
   circle_plot = fopen("/tmp/circles.dat", "w");
   gdata = &(data.matrix);

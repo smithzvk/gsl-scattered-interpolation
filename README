@@ -1,3 +1,36 @@
+
+Scattered Data Interpolation Development Branch
+===============================================
+
+This is a development branch of GSL where I am developing code for scattered
+data interpolation.  This will include a generic interface for scattered data
+interpolation and several methods for interpolation.
+
+Currently, this code supports:
+
+- Incremental Delaunay triangulation (This will likely have an exposed interface
+  for use in other contexts)
+- Barycentric interpolation over the triangulation
+- An interface that is converging to the standard GSL interpolation interface
+
+In the future I or others will add:
+
+- Arbitrary dimensionality Delaunay triangulation
+- Related computational geometry constructs: convex hulls, voronoi diagrams
+- Basic radial basis function (RBF) interpolation
+- Compactly supported RBF interpolation and "Fast" RBF methods
+- Kriging
+- Error estimates (where possible)
+
+Other possible additions:
+
+- Data thinning
+- Surface resconstruction
+
+
+The original GSL README follows:
+
+
 GSL - GNU Scientific Library
 ============================
 

@@ -715,7 +715,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         for (i = 0; i < dim+1; i++)
           {
             if (!leaf->links[ismplx]->links[i]) continue;
-            delaunay(tree, leaf->links[ismplx]->links[i], data, i, accel);
+            delaunay(tree, leaf->links[ismplx], data, i, accel);
             if (leaf->links[ismplx]->flipped) break;
           }
     }

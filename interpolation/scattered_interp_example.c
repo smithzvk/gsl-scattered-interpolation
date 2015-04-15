@@ -169,10 +169,16 @@ main()
 
      gnuplot> plot '/tmp/lines.dat' w lines
 
-     ...and to draw with the circles:
+     ...and to draw with the circles (busy, but useful for debugging):
 
      gnuplot> set size ratio -1
      gnuplot> plot '/tmp/circles.dat' w circles, '/tmp/lines.dat' w lines
+
+     ...and with points:
+
+     gnuplot> plot '/tmp/points.dat' w points, \
+                   '/tmp/circles.dat' w circles, \
+                   '/tmp/lines.dat' w lines
 
   */
 

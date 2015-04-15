@@ -202,6 +202,21 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
         gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
     }
 
+  /* Make scaling isotropic if asked (shift remains independent) */
+  if (!(SIMPLEX_TREE_NOSTANDARDIZE & init_flags)
+      && (SIMPLEX_TREE_ISOSCALE & init_flags))
+    {
+      double min_comp = gsl_vector_get(tree->scale, 0);
+      for (i = 1; i < dim; i++)
+        {
+          if (min_comp > gsl_vector_get(tree->scale, i))
+            min_comp = gsl_vector_get(tree->scale, i);
+        }
+      for (i = 0; i < dim; i++)
+          gsl_vector_set(tree->scale, i, min_comp);
+    }
+
+
   /* Build a regular simplex, see:
      http://en.wikipedia.org/wiki/Simplex#Cartesian_coordinates_for_regular_n-dimensional_simplex_in_Rn */
   for (i = 0; i < dim; i++)

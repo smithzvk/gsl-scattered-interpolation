@@ -69,9 +69,16 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
   for (j = 0; j < tree->dim+1; j++)
     for (k = j+1; k < tree->dim+1; k++)
       {
-        assert(node->points[k] != node->points[j]);
-        assert(node->links[k] != node);
-        if (node->links[k]) assert(node->links[k] != node->links[j]);
+        assert(("Inconsistency found in simplex tree structure, "
+                "a point is repeated in the simplex",
+                node->points[k] != node->points[j]));
+        assert(("Inconsistency found in simplex tree structure, "
+                "leaf is a neighbor of itself",
+                node->links[k] != node));
+        if (node->links[k])
+          assert(("Inconsistency found in simplex tree structure, "
+                  "repeated neighbor in neighbor list",
+                  node->links[k] != node->links[j]));
       }
 
   for (i = 0; i < node->n_links; i++)
@@ -81,16 +88,25 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
         {
           /* Check for forward and reverse linkage */
           for (k = 0; k < neighbor->n_links; k++)
-            assert(node->points[i] != neighbor->points[k]);
+            assert(("Inconsistency found in simplex tree structure, "
+                    "point i defines face between node and neighbor "
+                    "but point i is also in neighbor",
+                    node->points[i] != neighbor->points[k]));
           for (j = 0; j < neighbor->n_links; j++)
               if (neighbor->links[j] == node)
                 break;
-          assert(j < neighbor->n_links);
+          assert(("Inconsistency found in simplex tree structure, "
+                  "node is not in the neighbor list of its neighbor",
+                  j < neighbor->n_links));
           for (k = 0; k < neighbor->n_links; k++)
-            assert(node->points[k] != neighbor->points[j]);
+            assert(("Inconsistency found in simplex tree structure, ",
+                    "point j defines face between neighbor and node "
+                    "but point j is also in node",
+                    node->points[k] != neighbor->points[j]));
 
           /* Basic sanity check, is the list corrupt */
-          assert(!cycle(*seen));
+          assert(("Cycle found in the list of seen leaf nodes",
+                  !cycle(*seen)));
           /* Recurse but only if we haven't seen this node yet */
           if (!in_list(neighbor, *seen))
             {
@@ -120,7 +136,8 @@ _check_delaunay(simplex_tree *tree, simplex_tree_node *node)
       gsl_vector_mul(pp, tree->scale);
       gsl_vector_sub(pp, x0);
       double mag2 = dnrm22(pp);
-      assert(mag2 > r2 - 1e-3);
+      assert(("Point found that violates the Delaunay condition",
+              mag2 > r2 - 1e-3));
     }
   gsl_vector_free(pp);
   gsl_vector_free(x0);

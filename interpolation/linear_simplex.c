@@ -344,7 +344,7 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
     /* Outside the cage.  I should handle this more gracefully.  Insuring that a
        point interpolation will return zero and that a point insertion will be
        meaningful would be enough. */
-    assert(0);
+    assert(("Given point outside the domain", 0));
 
   return ret;
 }
@@ -375,7 +375,7 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
      This can happen if the point lies on a face.  Perhaps I could find the
      simplex that is the closest match and use that if none of them match.  This
      would be a useful fall-back. */
-  assert(0);
+  assert(("No subsimplex contains point, floating point precision issue?", 0));
 }
 
 int
@@ -385,7 +385,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
 {
   int i, j;
   if (!accel) accel = tree->accel;
-  assert(leaf->leaf_p);
+  assert(("You can only insert a point into a leaf", leaf->leaf_p));
   leaf->leaf_p = 0;
   int dim = tree->dim;
 
@@ -414,9 +414,11 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   for (i = 0; i < leaf->n_links; i++)
     {
       simplex_tree_node *neighbor = leaf->links[i];
-      assert(!neighbor || neighbor->leaf_p);
+      assert(("Inconsistency found in simplex tree structure",
+              !neighbor || neighbor->leaf_p));
       if (neighbor)
-        assert(!point_in_simplex(tree, neighbor, leaf->points[i]));
+        assert(("Inconsistency found in simplex tree structure",
+                !point_in_simplex(tree, neighbor, leaf->points[i])));
 
       /* By convention, the 0-face is the one that already existed */
       new_simplexes[i]->links[0] = neighbor;
@@ -427,7 +429,9 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
           for (j = 0; j < neighbor->n_links; j++)
             if (neighbor->links[j] == leaf)
               break;
-          assert(j < neighbor->n_links);
+          assert(("Inconsistency found in simplex tree structure, "
+                  "no reverse link",
+                  j < neighbor->n_links));
           neighbor->links[j] = new_simplexes[i];
         }
     }
@@ -445,7 +449,9 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
                                     new_simplexes[ismplx]->points[i]))
                 break;
             }
-          assert(jsmplx < dim+1);
+          assert(("Inconsistency found in simplex tree structure, "
+                  "proper internal simplex not found",
+                  jsmplx < dim+1));
           new_simplexes[ismplx]->links[i] = new_simplexes[jsmplx];
         }
     }
@@ -518,10 +524,15 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
   int dim = tree->dim;
 
   if (!leaf->links[face]) return GSL_SUCCESS;
-  assert(leaf->leaf_p);
+  assert(("Checking if a flip is necessary on an already flipped simplex",
+          !leaf->flipped));
+  assert(("Checking if a flip is necessary on a non-leaf simplex",
+          leaf->leaf_p));
 
   simplex_tree_node *neighbor = leaf->links[face];
-  assert(neighbor->leaf_p);
+  assert(("Inconsistency found in simplex tree structure, "
+          "neighbor to leaf not a leaf",
+          neighbor->leaf_p));
 
   /* Find far point */
   int far;
@@ -530,14 +541,16 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       if (neighbor->links[far] == leaf)
         break;
     }
-  assert(far < neighbor->n_links);
+  assert(("Inconsistency found in simplex tree structure, "
+          "reverse link not found",
+          far < neighbor->n_links));
 
   int ret = 0;
   if (in_hypersphere(tree, leaf, data, neighbor->points[far], accel))
     {
       ret = 1;
       /* This should always be true as you will never flip an edge in 1D */
-      assert(dim > 1);
+      assert(("Presumably trying to flip a 1D simplex?", dim > 1));
 
       /* We need to "flip" this face. */
       leaf->leaf_p = 0;
@@ -559,7 +572,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
             old_neighbors1[k++] = leaf->links[i];
           else
             ok = 1;
-        assert(ok);
+        assert(("Inconsistency found in simplex tree structure, "
+                "reverse link not found",
+                ok));
         ok = 0;
         k = 0;
         for (i = 0; i < neighbor->n_links; i++)
@@ -567,7 +582,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
             old_neighbors2[k++] = neighbor->links[i];
           else
             ok = 1;
-        assert(ok);
+        assert(("Inconsistency found in simplex tree structure, "
+                "reverse link not found",
+                ok));
       }
 
       /* Allocate new simplexes */
@@ -625,7 +642,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                                     leaf->points[left_out[ismplx]]))
                 break;
             }
-          assert(jsmplx < dim || null_option);
+          assert(("Inconsistency found in simplex tree structure, "
+                  "no proper external link found",
+                  jsmplx < dim || null_option));
 
           {
             simplex_tree_node *ext;
@@ -640,7 +659,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                 for (j = 0; j < ext->n_links; j++)
                   if (ext->links[j] == neighbor)
                     break;
-                assert(j < ext->n_links);
+                assert(("Inconsistency found in simplex tree structure, "
+                        "no reverse link found",
+                        j < ext->n_links));
                 ext->links[j] = new_simplexes[ismplx];
               }
           }
@@ -658,7 +679,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                                     leaf->points[left_out[ismplx]]))
                 break;
             }
-          assert(jsmplx < dim || null_option);
+          assert(("Inconsistency found in simplex tree structure, "
+                  "no proper external link found",
+                  jsmplx < dim || null_option));
 
           {
             simplex_tree_node *ext;
@@ -673,7 +696,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                 for (j = 0; j < ext->n_links; j++)
                   if (ext->links[j] == leaf)
                     break;
-                assert(j < ext->n_links);
+                assert(("Inconsistency found in simplex tree structure, "
+                        "no reverse link found",
+                        j < ext->n_links));
                 ext->links[j] = new_simplexes[ismplx];
               }
           }
@@ -692,7 +717,9 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                                         new_simplexes[ismplx]->points[i]))
                     break;
                 }
-              assert(jsmplx < dim+1);
+              assert(("Inconsistency found in simplex tree structure, "
+                      "proper internal simplex not found",
+                      jsmplx < dim+1));
               new_simplexes[ismplx]->links[i] = new_simplexes[jsmplx];
             }
         }
@@ -927,7 +954,7 @@ interp_point(simplex_tree *tree, simplex_tree_node *leaf,
   int i;
   int dim = tree->dim;
 
-  assert(leaf->leaf_p);
+  assert(("Interpolation must be on a leaf node", leaf->leaf_p));
   calculate_bary_coords(tree, leaf, data, point, accel);
 
   double tot = 0;

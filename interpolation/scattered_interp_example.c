@@ -62,7 +62,6 @@ main()
   insert_point(tree, leaf, &(data.matrix), &(new_point.vector), accel);
 
   assert(!leaf->leaf_p);
-  assert(3 == leaf->n_links);
   assert(0 == leaf->links[0]->points[0]);
   assert(-2 == leaf->links[0]->points[1]);
   assert(-3 == leaf->links[0]->points[2]);

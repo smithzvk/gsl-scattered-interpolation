@@ -81,24 +81,24 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
                   node->links[k] != node->links[j]));
       }
 
-  for (i = 0; i < node->n_links; i++)
+  for (i = 0; i < tree->dim+1; i++)
     {
       simplex_tree_node *neighbor = node->links[i];
       if (neighbor)
         {
           /* Check for forward and reverse linkage */
-          for (k = 0; k < neighbor->n_links; k++)
+          for (k = 0; k < tree->dim+1; k++)
             assert(("Inconsistency found in simplex tree structure, "
                     "point i defines face between node and neighbor "
                     "but point i is also in neighbor",
                     node->points[i] != neighbor->points[k]));
-          for (j = 0; j < neighbor->n_links; j++)
+          for (j = 0; j < tree->dim+1; j++)
               if (neighbor->links[j] == node)
                 break;
           assert(("Inconsistency found in simplex tree structure, "
                   "node is not in the neighbor list of its neighbor",
-                  j < neighbor->n_links));
-          for (k = 0; k < neighbor->n_links; k++)
+                  j < tree->dim+1));
+          for (k = 0; k < tree->dim+1; k++)
             assert(("Inconsistency found in simplex tree structure, ",
                     "point j defines face between neighbor and node "
                     "but point j is also in node",

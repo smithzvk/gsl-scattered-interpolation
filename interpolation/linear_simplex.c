@@ -67,8 +67,7 @@ simplex_tree_node_alloc(int dim)
 
   tree->leaf_p = 1;
   tree->flipped = 0;
-  tree->n_links = dim+1;
-  tree->links = malloc(tree->n_links * sizeof(simplex_tree_node *));
+  tree->links = malloc((dim+1) * sizeof(simplex_tree_node *));
   return tree;
 }
 
@@ -79,7 +78,7 @@ simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node)
   int dim = tree->dim;
   if (!node->leaf_p && !(node->flipped && (node < node->links[dim])))
     {
-      for (i = 0; i < node->n_links; i++)
+      for (i = 0; i < 1 + dim - node->flipped; i++)
         {
           if (node->links[i])
             simplex_tree_node_free(tree, node->links[i]);
@@ -256,19 +255,19 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
 
   /* We also apply the inverse of the shift and scale to these points as it
      simplifies the implementation. */
-  for (i = 0; i < tree->dim+1; i++)
+  for (i = 0; i < dim+1; i++)
     {
       gsl_vector_view v = gsl_matrix_row(tree->seed_points, i);
       gsl_vector_div(&(v.vector), tree->scale);
       gsl_vector_add(&(v.vector), tree->shift);
     }
 
-  for (i = 0; i < tree->dim+1; i++)
+  for (i = 0; i < dim+1; i++)
     {
       tree->root->points[i] = -(i+1);
     }
 
-  for (i = 0; i < tree->root->n_links; i++)
+  for (i = 0; i < dim+1; i++)
     {
       /* This is a special triangle that doesn't have neighbors to consider */
       tree->root->links[i] = NULL;
@@ -362,7 +361,7 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
     {
       int i;
       int dim = tree->dim;
-      for (i = 0; i < node->n_links; i++)
+      for (i = 0; i < 1 + dim - node->flipped; i++)
         {
           if (node->links[i]
               && contains_point(tree, node->links[i], data, point, accel))
@@ -399,7 +398,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
     }
 
   /* Populate the indexes in the newly created leaf nodes */
-  for (i = 0; i < leaf->n_links; i++)
+  for (i = 0; i < dim+1; i++)
     {
       new_simplexes[i]->points[0] = tree->n_points;
       int k = 1;
@@ -411,7 +410,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
     }
 
   /* Populate external links */
-  for (i = 0; i < leaf->n_links; i++)
+  for (i = 0; i < dim+1; i++)
     {
       simplex_tree_node *neighbor = leaf->links[i];
       assert(("Inconsistency found in simplex tree structure",
@@ -426,12 +425,12 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
       /* Fix the neighbor links for the existing leaf nodes */
       if (neighbor)
         {
-          for (j = 0; j < neighbor->n_links; j++)
+          for (j = 0; j < dim+1; j++)
             if (neighbor->links[j] == leaf)
               break;
           assert(("Inconsistency found in simplex tree structure, "
                   "no reverse link",
-                  j < neighbor->n_links));
+                  j < dim+1));
           neighbor->links[j] = new_simplexes[i];
         }
     }
@@ -456,13 +455,13 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
         }
     }
 
-  for (i = 0; i < leaf->n_links; i++)
+  for (i = 0; i < dim+1; i++)
     leaf->links[i] = new_simplexes[i];
 
   tree->n_points++;
 
   /* Now fix the Delaunay condition */
-  for (i = 0; i < leaf->n_links; i++)
+  for (i = 0; i < dim+1; i++)
     {
       /* Only check if this is a leaf (if it isn't a leaf then we have surely
          already looked at it) */
@@ -536,14 +535,14 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
 
   /* Find far point */
   int far;
-  for (far = 0; far < neighbor->n_links; far++)
+  for (far = 0; far < dim+1; far++)
     {
       if (neighbor->links[far] == leaf)
         break;
     }
   assert(("Inconsistency found in simplex tree structure, "
           "reverse link not found",
-          far < neighbor->n_links));
+          far < dim+1));
 
   int ret = 0;
   if (in_hypersphere(tree, leaf, data, neighbor->points[far], accel))
@@ -567,7 +566,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       {
         int k = 0;
         int ok = 0;
-        for (i = 0; i < leaf->n_links; i++)
+        for (i = 0; i < dim+1; i++)
           if (leaf->links[i] != neighbor)
             old_neighbors1[k++] = leaf->links[i];
           else
@@ -577,7 +576,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                 ok));
         ok = 0;
         k = 0;
-        for (i = 0; i < neighbor->n_links; i++)
+        for (i = 0; i < dim+1; i++)
           if (neighbor->links[i] != leaf)
             old_neighbors2[k++] = neighbor->links[i];
           else
@@ -656,12 +655,12 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
             if (ext)
               {
                 int j;
-                for (j = 0; j < ext->n_links; j++)
+                for (j = 0; j < dim+1; j++)
                   if (ext->links[j] == neighbor)
                     break;
                 assert(("Inconsistency found in simplex tree structure, "
                         "no reverse link found",
-                        j < ext->n_links));
+                        j < dim+1));
                 ext->links[j] = new_simplexes[ismplx];
               }
           }
@@ -693,12 +692,12 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
             if (ext)
               {
                 int j;
-                for (j = 0; j < ext->n_links; j++)
+                for (j = 0; j < dim+1; j++)
                   if (ext->links[j] == leaf)
                     break;
                 assert(("Inconsistency found in simplex tree structure, "
                         "no reverse link found",
-                        j < ext->n_links));
+                        j < dim+1));
                 ext->links[j] = new_simplexes[ismplx];
               }
           }
@@ -724,9 +723,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
             }
         }
 
-      leaf->n_links = dim;
-      neighbor->n_links = dim;
-      for (i = 0; i < leaf->n_links; i++)
+      for (i = 0; i < dim; i++)
         {
           leaf->links[i] = new_simplexes[i];
           neighbor->links[i] = new_simplexes[i];

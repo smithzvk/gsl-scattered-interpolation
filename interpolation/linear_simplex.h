@@ -8,8 +8,6 @@ typedef struct simplex_tree_node_struct
   struct simplex_tree_node_struct **links;
   /* Mark if this is a leaf or not */
   char leaf_p, flipped;
-  /* Extents O(d) numbers*/
-  char n_links;
 } simplex_tree_node;
 
 typedef struct

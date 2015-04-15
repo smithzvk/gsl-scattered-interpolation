@@ -6,8 +6,8 @@ typedef struct simplex_tree_node_struct
   /* An array to pointers to other trees contained in this one.  NULL if this is
      a leaf. */
   struct simplex_tree_node_struct **links;
-  /* Mark if this is a leaf or not */
-  char leaf_p, flipped;
+  /* Flags marking if this is a leaf or flipped */
+  unsigned int leaf_p:1, flipped:1;
 } simplex_tree_node;
 
 typedef struct

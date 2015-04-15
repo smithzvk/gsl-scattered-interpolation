@@ -59,16 +59,17 @@
 #include "linear_simplex_integrity_check.h"
 
 simplex_tree_node *
-simplex_tree_node_alloc(int dim)
+simplex_tree_node_alloc(simplex_tree *tree)
 {
   int i;
-  simplex_tree_node *tree = malloc(sizeof(simplex_tree));
-  tree->points = malloc((dim+1) * sizeof(int));
+  int dim = tree->dim;
+  simplex_tree_node *node = malloc(sizeof(simplex_tree));
+  node->points = malloc((dim+1) * sizeof(int));
 
-  tree->leaf_p = 1;
-  tree->flipped = 0;
-  tree->links = malloc((dim+1) * sizeof(simplex_tree_node *));
-  return tree;
+  node->leaf_p = 1;
+  node->flipped = 0;
+  node->links = malloc((dim+1) * sizeof(simplex_tree_node *));
+  return node;
 }
 
 void
@@ -99,7 +100,7 @@ simplex_tree_alloc(int dim, int n_points)
   tree->seed_points = gsl_matrix_alloc(dim+1, dim);
   tree->n_points = 0;
 
-  simplex_tree_node *node = simplex_tree_node_alloc(dim);
+  simplex_tree_node *node = simplex_tree_node_alloc(tree);
   tree->root = node;
 
   tree->accel = simplex_tree_accel_alloc(dim);
@@ -394,7 +395,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   int ismplx;
   for (ismplx = 0; ismplx < dim + 1; ismplx++)
     {
-      new_simplexes[ismplx] = simplex_tree_node_alloc(dim);
+      new_simplexes[ismplx] = simplex_tree_node_alloc(tree);
     }
 
   /* Populate the indexes in the newly created leaf nodes */
@@ -590,7 +591,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       int ismplx;
       for (ismplx = 0; ismplx < dim; ismplx++)
         {
-          new_simplexes[ismplx] = simplex_tree_node_alloc(dim);
+          new_simplexes[ismplx] = simplex_tree_node_alloc(tree);
         }
 
       /* Set points on simplexes */

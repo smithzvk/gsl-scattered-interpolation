@@ -36,7 +36,7 @@ typedef struct simplex_tree_struct
   int *left_out;
 } simplex_tree;
 
-simplex_tree_node * simplex_tree_node_alloc(int dim);
+simplex_tree_node * simplex_tree_node_alloc(simplex_tree *tree);
 
 simplex_tree * simplex_tree_alloc(int dim, int n_points);
 

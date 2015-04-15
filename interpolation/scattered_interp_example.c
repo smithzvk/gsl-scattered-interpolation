@@ -21,70 +21,6 @@
 
 */
 
-FILE *triangle_plot;
-FILE *circle_plot;
-gsl_matrix *gdata;
-gsl_vector *gresponse;
-
-void output_lines_and_circles(simplex_tree *tree, simplex_tree_node *node)
-{
-  int i;
-  for (i = 0; i < tree->dim + 1; i++)
-    {
-      int i1 = node->points[i];
-      int i2 = node->points[(i+1)%(tree->dim + 1)];
-
-      gsl_vector_view p1, p2;
-      double r1, r2;
-      if (i1 < 0)
-        {
-          p1 = gsl_matrix_row(tree->seed_points, -i1 - 1);
-          r1 = 0;
-        }
-      else
-        {
-          p1 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
-          r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
-        }
-
-      if (i2 < 0)
-        {
-          p2 = gsl_matrix_row(tree->seed_points, -i2 - 1);
-          r2 = 0;
-        }
-      else
-        {
-          p2 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
-          r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
-        }
-
-      fprintf(triangle_plot,
-              "%g %g %g\n%g %g %g\n\n\n",
-              gsl_vector_get(tree->scale, 0)
-              * (gsl_vector_get(&(p1.vector), 0)
-                 - gsl_vector_get(tree->shift, 0)),
-              gsl_vector_get(tree->scale, 1)
-              * (gsl_vector_get(&(p1.vector), 1)
-                 - gsl_vector_get(tree->shift, 1)),
-              r1,
-              gsl_vector_get(tree->scale, 0)
-              * (gsl_vector_get(&(p2.vector), 0)
-                 - gsl_vector_get(tree->shift, 0)),
-              gsl_vector_get(tree->scale, 1)
-              * (gsl_vector_get(&(p2.vector), 1)
-                 - gsl_vector_get(tree->shift, 1)),
-              r2);
-    }
-  gsl_vector *x0 = gsl_vector_alloc(tree->dim);
-  double r2;
-  calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
-  fprintf(circle_plot, "%g %g %g\n",
-          gsl_vector_get(x0, 0),
-          gsl_vector_get(x0, 1),
-          sqrt(r2));
-  gsl_vector_free(x0);
-}
-
 int
 main()
 {
@@ -200,28 +136,8 @@ main()
         }
     }
 
-  FILE *points = fopen("/tmp/points.dat", "w");
-  for (i = 0; i < data.matrix.size1; i++)
-    {
-      fprintf(points, "%g %g\n",
-              gsl_vector_get(tree->scale, 0)
-              * (gsl_matrix_get(&(data.matrix), i, 0)
-                 - gsl_vector_get(tree->shift, 0)),
-              gsl_vector_get(tree->scale, 1)
-              * (gsl_matrix_get(&(data.matrix), i, 1)
-                 - gsl_vector_get(tree->shift, 1)));
-    }
-  fclose(points);
-
-  triangle_plot = fopen("/tmp/lines.dat", "w");
-  circle_plot = fopen("/tmp/circles.dat", "w");
-  gdata = &(data.matrix);
-  gresponse = &(response.vector);
-  struct node_list *seen = NULL;
-  check_leaf_nodes(tree, tree->root, &seen, output_lines_and_circles);
-  free_list(seen);
-  fclose(triangle_plot);
-  fclose(circle_plot);
+  output_triangulation(tree, &(data.matrix), &(response.vector),
+                       "/tmp/lines.dat", "/tmp/points.dat", "/tmp/circles.dat");
 
   FILE *plot = fopen("/tmp/plot.dat", "w");
   for (i = 0; i < n_grid; i++)

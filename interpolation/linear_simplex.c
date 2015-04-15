@@ -451,10 +451,6 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
 
   tree->n_points++;
 
-  struct node_list *seen = NULL;
-  check_leaf_nodes(tree, leaf->links[0], &seen, NULL);
-  free_list(seen); seen = NULL;
-
   /* Now fix the Delaunay condition */
   for (i = 0; i < leaf->n_links; i++)
     {
@@ -462,8 +458,6 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
          already looked at it) */
       if (!leaf->links[i]->leaf_p) continue;
       delaunay(tree, leaf->links[i], data, 0, accel);
-      check_leaf_nodes(tree, leaf->links[0], &seen, NULL);
-      free_list(seen); seen = NULL;
     }
   check_delaunay(tree, data);
 

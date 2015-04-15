@@ -143,31 +143,24 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
 {
   int i, dim = tree->dim;
 
-  assert(data || (min && max) || (init_flags & SIMPLEX_TREE_NOSTANDARDIZE));
-  if (init_flags & SIMPLEX_TREE_NOSTANDARDIZE)
+  if (!(data || (min && max) || (init_flags & SIMPLEX_TREE_NOSTANDARDIZE)))
     {
-      for (i = 0; i < dim; i++)
-        {
-          gsl_vector_set(tree->shift, i, 0);
-          gsl_vector_set(tree->scale, i, 1);
-        }
+      /* You need to either provide a min and max, or provide some
+         representative data to infer one from, or tell the algorithm to not
+         standardize with SIMPLEX_TREE_NOSTANDARDIZE. */
+      return GSL_FAILURE;
     }
-  else if (min && max)
+  else if (init_flags & SIMPLEX_TREE_NOSTANDARDIZE)
     {
       for (i = 0; i < dim; i++)
         {
-          double min_val = gsl_vector_get(min, i);
-          double max_val = gsl_vector_get(max, i);
-          gsl_vector_set(tree->shift, i, (min_val + max_val)/2.0);
-          if (max_val - min_val <= 0)
-            /* Something is wrong, but last ditch effort to make this work */
-            gsl_vector_set(tree->scale, i, 1.0);
-          else
-            gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
+          gsl_vector_set(tree->min, i, -0.5);
+          gsl_vector_set(tree->max, i, +0.5);
         }
     }
   else if (data && (!min || !max))
     {
+      /* Fill in what we are given */
       for (i = 0; i < dim; i++)
         {
           if (min)
@@ -181,6 +174,7 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
             gsl_vector_set(tree->max, i, gsl_matrix_get(data, 0, i));
         }
 
+      /* Infer the rest from the given data */
       for (i = 1; i < data->size1; i++)
         {
           int j;
@@ -193,24 +187,19 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
                 gsl_vector_set(tree->max, j, val);
             }
         }
-      for (i = 0; i < dim; i++)
-        {
-          double min_val = gsl_vector_get(tree->min, i);
-          double max_val = gsl_vector_get(tree->max, i);
-          gsl_vector_set(tree->shift, i, (min_val + max_val)/2.0);
-          if (max_val - min_val <= 0)
-            /* Something is wrong, but last ditch effort to make this work */
-            gsl_vector_set(tree->scale, i, 1.0);
-          else
-            gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
-        }
     }
-  else
+
+  /* Calculate the shift and scale */
+  for (i = 0; i < dim; i++)
     {
-      /* You need to either provide a min and max, or provide some
-         representative data to infer one from, or tell the algorithm to not
-         standardize with SIMPLEX_TREE_NOSTANDARDIZE. */
-      return GSL_FAILURE;
+      double min_val = gsl_vector_get(tree->min, i);
+      double max_val = gsl_vector_get(tree->max, i);
+      gsl_vector_set(tree->shift, i, (min_val + max_val)/2.0);
+      if (max_val - min_val <= 0)
+        /* Something is wrong, but last ditch effort to make this work */
+        gsl_vector_set(tree->scale, i, 1.0);
+      else
+        gsl_vector_set(tree->scale, i, 1.0/(max_val - min_val));
     }
 
   /* Build a regular simplex, see:

@@ -42,14 +42,14 @@ main()
   /* Test calculate hypersphere */
   tree = simplex_tree_alloc(2, 50);
   simplex_tree_init(tree, NULL, NULL, NULL, SIMPLEX_TREE_NOSTANDARDIZE, NULL);
-  calculate_hypersphere(tree, tree->root, &(data.matrix),
+  calculate_hypersphere(tree, 0, &(data.matrix),
                         &(center_vector.vector), &r2,
                         accel);
 
   /* Trivial leaf find */
   double point_vector[2] = {-88, 41};
   gsl_vector_view point = gsl_vector_view_array(point_vector, 2);
-  simplex_tree_node *leaf = find_leaf(tree, &(data.matrix), &(point.vector), NULL);
+  simplex_index leaf = find_leaf(tree, &(data.matrix), &(point.vector), NULL);
 
   /* Test trivial interpolation */
   assert(0 == interp_point(tree, leaf, &(data.matrix), &(response.vector),
@@ -61,24 +61,24 @@ main()
   gsl_vector_view new_point = gsl_matrix_row(&(data.matrix), 0);
   insert_point(tree, leaf, &(data.matrix), &(new_point.vector), accel);
 
-  assert(!leaf->leaf_p);
-  assert(0 == leaf->links[0]->points[0]);
-  assert(-2 == leaf->links[0]->points[1]);
-  assert(-3 == leaf->links[0]->points[2]);
-  assert(0 == leaf->links[1]->points[0]);
-  assert(-1 == leaf->links[1]->points[1]);
-  assert(-3 == leaf->links[1]->points[2]);
-  assert(0 == leaf->links[2]->points[0]);
-  assert(-1 == leaf->links[2]->points[1]);
-  assert(-2 == leaf->links[2]->points[2]);
+  assert(!SIMP(leaf)->leaf_p);
+  assert(0 == POINT(LINK(leaf, 0), 0));
+  assert(-2 == POINT(LINK(leaf, 0), 1));
+  assert(-3 == POINT(LINK(leaf, 0), 2));
+  assert(0 == POINT(LINK(leaf, 1), 0));
+  assert(-1 == POINT(LINK(leaf, 1), 1));
+  assert(-3 == POINT(LINK(leaf, 1), 2));
+  assert(0 == POINT(LINK(leaf, 2), 0));
+  assert(-1 == POINT(LINK(leaf, 2), 1));
+  assert(-2 == POINT(LINK(leaf, 2), 2));
 
-  assert(1 == in_hypersphere(tree, tree->root, &(data.matrix), 0, accel));
+  assert(1 == in_hypersphere(tree, 0, &(data.matrix), 0, accel));
 
   /* Finding the containing triangle */
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
-  assert(0 == leaf->points[0]);
-  assert(-1 == leaf->points[1]);
-  assert(-3 == leaf->points[2]);
+  assert(0 == POINT(leaf, 0));
+  assert(-1 == POINT(leaf, 1));
+  assert(-3 == POINT(leaf, 2));
 
   /* Building simplex trees */
   int i;

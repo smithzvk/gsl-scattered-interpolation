@@ -8,8 +8,13 @@
 
 #include "linear_simplex_integrity_check.h"
 
+FILE *flines;
+FILE *fcircles;
+gsl_matrix *gdata;
+gsl_vector *gresponse;
+
 struct node_list *
-cons(void *car, struct node_list *cdr)
+cons(simplex_index car, struct node_list *cdr)
 {
   struct node_list *new = malloc(sizeof(struct node_list));
   new->next = cdr;
@@ -41,7 +46,7 @@ cycle(struct node_list *list)
 }
 
 int
-in_list(simplex_tree_node *node, struct node_list *list)
+in_list(simplex_index node, struct node_list *list)
 {
   if (!list)
     return 0;
@@ -51,12 +56,12 @@ in_list(simplex_tree_node *node, struct node_list *list)
 }
 
 void
-check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list **seen,
-                 void (*fn)(simplex_tree *, simplex_tree_node *))
+check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **seen,
+                 void (*fn)(simplex_tree *, simplex_index))
 {
-  if (!node->leaf_p)
+  if (!SIMP(node)->leaf_p)
     {
-      check_leaf_nodes(tree, node->links[0], seen, fn);
+      check_leaf_nodes(tree, LINK(node, 0), seen, fn);
       return;
     }
 
@@ -71,19 +76,19 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
       {
         assert(("Inconsistency found in simplex tree structure, "
                 "a point is repeated in the simplex",
-                node->points[k] != node->points[j]));
+                POINT(node, k) != POINT(node, j)));
         assert(("Inconsistency found in simplex tree structure, "
                 "leaf is a neighbor of itself",
-                node->links[k] != node));
-        if (node->links[k])
+                LINK(node, k) != node));
+        if (LINK(node, k))
           assert(("Inconsistency found in simplex tree structure, "
                   "repeated neighbor in neighbor list",
-                  node->links[k] != node->links[j]));
+                  LINK(node, k) != LINK(node, j)));
       }
 
   for (i = 0; i < tree->dim+1; i++)
     {
-      simplex_tree_node *neighbor = node->links[i];
+      simplex_index neighbor = LINK(node, i);
       if (neighbor)
         {
           /* Check for forward and reverse linkage */
@@ -91,10 +96,10 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
             assert(("Inconsistency found in simplex tree structure, "
                     "point i defines face between node and neighbor "
                     "but point i is also in neighbor",
-                    node->points[i] != neighbor->points[k]));
+                    POINT(node, i) != POINT(neighbor, k)));
           for (j = 0; j < tree->dim+1; j++)
-              if (neighbor->links[j] == node)
-                break;
+            if (LINK(neighbor, j) == node)
+              break;
           assert(("Inconsistency found in simplex tree structure, "
                   "node is not in the neighbor list of its neighbor",
                   j < tree->dim+1));
@@ -102,7 +107,7 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
             assert(("Inconsistency found in simplex tree structure, ",
                     "point j defines face between neighbor and node "
                     "but point j is also in node",
-                    node->points[k] != neighbor->points[j]));
+                    POINT(node, k) != POINT(neighbor, j)));
 
           /* Basic sanity check, is the list corrupt */
           assert(("Cycle found in the list of seen leaf nodes",
@@ -116,10 +121,8 @@ check_leaf_nodes(simplex_tree *tree, simplex_tree_node *node, struct node_list *
     }
 }
 
-gsl_matrix *gdata;
-
 void
-_check_delaunay(simplex_tree *tree, simplex_tree_node *node)
+_check_delaunay(simplex_tree *tree, simplex_index node)
 {
   int i;
   gsl_vector *x0 = gsl_vector_alloc(tree->dim);
@@ -148,24 +151,19 @@ check_delaunay(simplex_tree *tree, gsl_matrix *data)
 {
   gdata = data;
   struct node_list *seen = NULL;
-  check_leaf_nodes(tree, tree->root, &seen, _check_delaunay);
+  check_leaf_nodes(tree, 0, &seen, _check_delaunay);
   free_list(seen); seen = NULL;
   return 1;
 }
 
-FILE *flines;
-FILE *fcircles;
-gsl_matrix *gdata;
-gsl_vector *gresponse;
-
 void
-_output_triangulation(simplex_tree *tree, simplex_tree_node *node)
+_output_triangulation(simplex_tree *tree, simplex_index node)
 {
   int i;
   for (i = 0; i < tree->dim + 1; i++)
     {
-      int i1 = node->points[i];
-      int i2 = node->points[(i+1)%(tree->dim + 1)];
+      int i1 = POINT(node, i);
+      int i2 = POINT(node, (i+1)%(tree->dim + 1));
 
       gsl_vector_view p1, p2;
       double r1, r2;
@@ -257,7 +255,7 @@ output_triangulation(simplex_tree *tree, gsl_matrix *data, gsl_vector *response,
   gdata = data;
   gresponse = response;
   struct node_list *seen = NULL;
-  check_leaf_nodes(tree, tree->root, &seen, _output_triangulation);
+  check_leaf_nodes(tree, 0, &seen, _output_triangulation);
   free_list(seen);
 
   if (flines) fclose(flines);

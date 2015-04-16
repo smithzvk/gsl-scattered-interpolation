@@ -58,55 +58,63 @@
 #include "linear_simplex.h"
 #include "linear_simplex_integrity_check.h"
 
-simplex_tree_node *
+simplex_index
 simplex_tree_node_alloc(simplex_tree *tree)
 {
   int i;
   int dim = tree->dim;
-  simplex_tree_node *node = malloc(sizeof(simplex_tree));
-  node->points = malloc((dim+1) * sizeof(int));
+
+  assert(("Ran out of room in simplex array",
+          tree->n_simplexes + 1 < tree->max_simplexes));
+  simplex_tree_node *node = &(tree->simplexes[tree->n_simplexes]);
+
+  assert(("Ran out of room in point index array",
+          tree->n_pidx + dim + 1 < tree->max_pidx));
+  node->points = tree->n_pidx;
+  tree->n_pidx += dim + 1;
+
+  assert(("Ran out of room in link index array",
+          tree->n_links + dim + 1 < tree->max_links));
+  node->links = tree->n_links;
+  tree->n_links += dim + 1;
 
   node->leaf_p = 1;
   node->flipped = 0;
-  node->links = malloc((dim+1) * sizeof(simplex_tree_node *));
-  return node;
-}
 
-void
-simplex_tree_node_free(simplex_tree *tree, simplex_tree_node *node)
-{
-  int i;
-  int dim = tree->dim;
-  if (!node->leaf_p && !(node->flipped && (node < node->links[dim])))
-    {
-      for (i = 0; i < 1 + dim - node->flipped; i++)
-        {
-          if (node->links[i])
-            simplex_tree_node_free(tree, node->links[i]);
-        }
-    }
-  free(node->points);
-  free(node->links);
-  free(node);
+  return tree->n_simplexes++;
 }
 
 simplex_tree *
 simplex_tree_alloc(int dim, int n_points)
 {
-  int i, j;
-
   simplex_tree *tree = malloc(sizeof(simplex_tree));
   tree->dim = dim;
   tree->seed_points = gsl_matrix_alloc(dim+1, dim);
   tree->n_points = 0;
 
-  simplex_tree_node *node = simplex_tree_node_alloc(tree);
-  tree->root = node;
+  /* A multiplicative factor to account for internal nodes */
+  int overhead = 9;
+
+  /* Allocate the arrays */
+  tree->max_pidx = overhead * n_points * (dim+1);
+  tree->pidx = malloc(tree->max_pidx * sizeof(int));
+  tree->n_pidx = 0;
+
+  tree->max_links = overhead * n_points * (dim+1);
+  tree->links = malloc(tree->max_links * sizeof(simplex_index));
+  tree->n_links = 0;
+
+  tree->max_simplexes = overhead * n_points;
+  tree->simplexes = malloc(tree->max_simplexes * sizeof(simplex_tree_node));
+  tree->n_simplexes = 0;
+
+  /* Allocate the root node */
+  simplex_index node = simplex_tree_node_alloc(tree);
 
   tree->accel = simplex_tree_accel_alloc(dim);
-  tree->new_simplexes = malloc((dim+1) * sizeof(simplex_tree_node*));
-  tree->old_neighbors1 = malloc(dim * sizeof(simplex_tree_node*));
-  tree->old_neighbors2 = malloc(dim * sizeof(simplex_tree_node*));
+  tree->new_simplexes = malloc((dim+1) * sizeof(simplex_index));
+  tree->old_neighbors1 = malloc(dim * sizeof(simplex_index));
+  tree->old_neighbors2 = malloc(dim * sizeof(simplex_index));
   tree->left_out = malloc(dim * sizeof(int));
   tree->shift = gsl_vector_alloc(dim);
   tree->scale = gsl_vector_alloc(dim);
@@ -121,8 +129,11 @@ void
 simplex_tree_free(simplex_tree *tree)
 {
   gsl_matrix_free(tree->seed_points);
-  simplex_tree_node_free(tree, tree->root);
   simplex_tree_accel_free(tree->accel);
+  free(tree->simplexes);
+  free(tree->pidx);
+  free(tree->links);
+
   free(tree->new_simplexes);
   free(tree->old_neighbors1);
   free(tree->old_neighbors2);
@@ -264,15 +275,11 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
     }
 
   for (i = 0; i < dim+1; i++)
-    {
-      tree->root->points[i] = -(i+1);
-    }
+    POINT(0, i) = -(i+1);
 
   for (i = 0; i < dim+1; i++)
-    {
-      /* This is a special triangle that doesn't have neighbors to consider */
-      tree->root->links[i] = NULL;
-    }
+    /* This is a special triangle that doesn't have neighbors to consider */
+    LINK(0, i) = 0;
 
   gsl_permutation_init(tree->shuffle);
   if (rng)
@@ -285,7 +292,7 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
         {
           gsl_vector_view new_point
             = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, i));
-          simplex_tree_node *leaf
+          simplex_index leaf
             = find_leaf(tree, data, &(new_point.vector), tree->accel);
           ret = insert_point(tree, leaf, data, &(new_point.vector),
                              tree->accel);
@@ -303,7 +310,7 @@ simplex_tree_accel_alloc(int dim)
   accel->simplex_matrix = gsl_matrix_alloc(dim, dim);
   accel->perm = gsl_permutation_alloc(dim);
   accel->coords = gsl_vector_alloc(dim);
-  accel->current_simplex = NULL;
+  accel->current_simplex = -1;
 }
 
 void
@@ -316,19 +323,19 @@ simplex_tree_accel_free(simplex_tree_accel *accel)
 }
 
 int
-point_in_simplex(simplex_tree *tree, simplex_tree_node *node, int point)
+point_in_simplex(simplex_tree *tree, simplex_index node, int point)
 {
   int dim = tree->dim;
   int i;
   for (i = 0; i < dim + 1; i++)
     {
-      if (node->points[i] == point)
+      if (POINT(node, i) == point)
         break;
     }
   return (i < dim + 1);
 }
 
-simplex_tree_node *
+simplex_index
 find_leaf(simplex_tree *tree, gsl_matrix *data,
           gsl_vector *point,
           simplex_tree_accel *accel)
@@ -337,9 +344,9 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
   int dim = tree->dim;
   if (!accel) local_accel = tree->accel;
 
-  simplex_tree_node *ret;
-  if (contains_point(tree, tree->root, data, point, local_accel))
-    ret = _find_leaf(tree, tree->root, data, point, local_accel);
+  simplex_index ret;
+  if (contains_point(tree, 0, data, point, local_accel))
+    ret = _find_leaf(tree, 0, data, point, local_accel);
   else
     /* Outside the cage.  I should handle this more gracefully.  Insuring that a
        point interpolation will return zero and that a point insertion will be
@@ -349,12 +356,12 @@ find_leaf(simplex_tree *tree, gsl_matrix *data,
   return ret;
 }
 
-simplex_tree_node *
-_find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
+simplex_index
+_find_leaf(simplex_tree *tree, simplex_index node, gsl_matrix *data,
            gsl_vector *point,
            simplex_tree_accel *accel)
 {
-  if (node->leaf_p)
+  if (SIMP(node)->leaf_p)
     {
       return node;
     }
@@ -362,12 +369,12 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
     {
       int i;
       int dim = tree->dim;
-      for (i = 0; i < 1 + dim - node->flipped; i++)
+      for (i = 0; i < 1 + dim - SIMP(node)->flipped; i++)
         {
-          if (node->links[i]
-              && contains_point(tree, node->links[i], data, point, accel))
+          if (LINK(node, i)
+              && contains_point(tree, LINK(node, i), data, point, accel))
             {
-              return _find_leaf(tree, node->links[i], data, point, accel);
+              return _find_leaf(tree, LINK(node, i), data, point, accel);
             }
         }
     }
@@ -379,17 +386,17 @@ _find_leaf(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
 }
 
 int
-insert_point(simplex_tree *tree, simplex_tree_node *leaf,
+insert_point(simplex_tree *tree, simplex_index leaf,
              gsl_matrix *data, gsl_vector *point,
              simplex_tree_accel *accel)
 {
   int i, j;
   if (!accel) accel = tree->accel;
-  assert(("You can only insert a point into a leaf", leaf->leaf_p));
-  leaf->leaf_p = 0;
+  assert(("You can only insert a point into a leaf", SIMP(leaf)->leaf_p));
+  SIMP(leaf)->leaf_p = 0;
   int dim = tree->dim;
 
-  simplex_tree_node **new_simplexes = tree->new_simplexes;
+  simplex_index *new_simplexes = tree->new_simplexes;
 
   /* Allocate $d$ new simplexes */
   int ismplx;
@@ -401,38 +408,38 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
   /* Populate the indexes in the newly created leaf nodes */
   for (i = 0; i < dim+1; i++)
     {
-      new_simplexes[i]->points[0] = tree->n_points;
+      POINT(new_simplexes[i], 0) = tree->n_points;
       int k = 1;
       for (j = 0; j < dim+1; j++)
         {
           if (j==i) continue;
-          new_simplexes[i]->points[k++] = leaf->points[j];
+          POINT(new_simplexes[i], k++) = POINT(leaf, j);
         }
     }
 
   /* Populate external links */
   for (i = 0; i < dim+1; i++)
     {
-      simplex_tree_node *neighbor = leaf->links[i];
+      simplex_index neighbor = LINK(leaf, i);
       assert(("Inconsistency found in simplex tree structure",
-              !neighbor || neighbor->leaf_p));
+              !neighbor || SIMP(neighbor)->leaf_p));
       if (neighbor)
         assert(("Inconsistency found in simplex tree structure",
-                !point_in_simplex(tree, neighbor, leaf->points[i])));
+                !point_in_simplex(tree, neighbor, POINT(leaf, i))));
 
       /* By convention, the 0-face is the one that already existed */
-      new_simplexes[i]->links[0] = neighbor;
+      LINK(new_simplexes[i], 0) = neighbor;
 
       /* Fix the neighbor links for the existing leaf nodes */
       if (neighbor)
         {
           for (j = 0; j < dim+1; j++)
-            if (neighbor->links[j] == leaf)
+            if (LINK(neighbor, j) == leaf)
               break;
           assert(("Inconsistency found in simplex tree structure, "
                   "no reverse link",
                   j < dim+1));
-          neighbor->links[j] = new_simplexes[i];
+          LINK(neighbor, j) = new_simplexes[i];
         }
     }
 
@@ -446,18 +453,18 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
             {
               if (ismplx == jsmplx) continue;
               if (!point_in_simplex(tree, new_simplexes[jsmplx],
-                                    new_simplexes[ismplx]->points[i]))
+                                    POINT(new_simplexes[ismplx],i)))
                 break;
             }
           assert(("Inconsistency found in simplex tree structure, "
                   "proper internal simplex not found",
                   jsmplx < dim+1));
-          new_simplexes[ismplx]->links[i] = new_simplexes[jsmplx];
+          LINK(new_simplexes[ismplx], i) = new_simplexes[jsmplx];
         }
     }
 
   for (i = 0; i < dim+1; i++)
-    leaf->links[i] = new_simplexes[i];
+    LINK(leaf, i) = new_simplexes[i];
 
   tree->n_points++;
 
@@ -466,8 +473,8 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
     {
       /* Only check if this is a leaf (if it isn't a leaf then we have surely
          already looked at it) */
-      if (!leaf->links[i]->leaf_p) continue;
-      delaunay(tree, leaf->links[i], data, 0, accel);
+      if (!(SLINK(leaf, i)->leaf_p)) continue;
+      delaunay(tree, LINK(leaf, i), data, 0, accel);
     }
   check_delaunay(tree, data);
 
@@ -513,7 +520,7 @@ insert_point(simplex_tree *tree, simplex_tree_node *leaf,
 */
 
 int
-delaunay(simplex_tree *tree, simplex_tree_node *leaf,
+delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,
          /* face is the index in the simplex that identifies the face */
          int face,
@@ -523,22 +530,22 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
 
   int dim = tree->dim;
 
-  if (!leaf->links[face]) return GSL_SUCCESS;
+  if (!LINK(leaf, face)) return GSL_SUCCESS;
   assert(("Checking if a flip is necessary on an already flipped simplex",
-          !leaf->flipped));
+          !SIMP(leaf)->flipped));
   assert(("Checking if a flip is necessary on a non-leaf simplex",
-          leaf->leaf_p));
+          SIMP(leaf)->leaf_p));
 
-  simplex_tree_node *neighbor = leaf->links[face];
+  simplex_index neighbor = LINK(leaf, face);
   assert(("Inconsistency found in simplex tree structure, "
           "neighbor to leaf not a leaf",
-          neighbor->leaf_p));
+          SIMP(neighbor)->leaf_p));
 
   /* Find far point */
   int far;
   for (far = 0; far < dim+1; far++)
     {
-      if (neighbor->links[far] == leaf)
+      if (LINK(neighbor, far) == leaf)
         break;
     }
   assert(("Inconsistency found in simplex tree structure, "
@@ -546,21 +553,21 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
           far < dim+1));
 
   int ret = 0;
-  if (in_hypersphere(tree, leaf, data, neighbor->points[far], accel))
+  if (in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
     {
       ret = 1;
       /* This should always be true as you will never flip an edge in 1D */
       assert(("Presumably trying to flip a 1D simplex?", dim > 1));
 
       /* We need to "flip" this face. */
-      leaf->leaf_p = 0;
-      neighbor->leaf_p = 0;
-      leaf->flipped = 1;
-      neighbor->flipped = 1;
+      SIMP(leaf)->leaf_p = 0;
+      SIMP(neighbor)->leaf_p = 0;
+      SIMP(leaf)->flipped = 1;
+      SIMP(neighbor)->flipped = 1;
 
-      simplex_tree_node **new_simplexes = tree->new_simplexes;
-      simplex_tree_node **old_neighbors1 = tree->old_neighbors1;
-      simplex_tree_node **old_neighbors2 = tree->old_neighbors2;
+      simplex_index *new_simplexes = tree->new_simplexes;
+      simplex_index *old_neighbors1 = tree->old_neighbors1;
+      simplex_index *old_neighbors2 = tree->old_neighbors2;
       int *left_out = tree->left_out;
 
       /* Save current neighbors */
@@ -568,8 +575,8 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         int k = 0;
         int ok = 0;
         for (i = 0; i < dim+1; i++)
-          if (leaf->links[i] != neighbor)
-            old_neighbors1[k++] = leaf->links[i];
+          if (LINK(leaf, i) != neighbor)
+            old_neighbors1[k++] = LINK(leaf, i);
           else
             ok = 1;
         assert(("Inconsistency found in simplex tree structure, "
@@ -578,8 +585,8 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
         ok = 0;
         k = 0;
         for (i = 0; i < dim+1; i++)
-          if (neighbor->links[i] != leaf)
-            old_neighbors2[k++] = neighbor->links[i];
+          if (LINK(neighbor, i) != leaf)
+            old_neighbors2[k++] = LINK(neighbor, i);
           else
             ok = 1;
         assert(("Inconsistency found in simplex tree structure, "
@@ -597,8 +604,8 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
       /* Set points on simplexes */
       for (ismplx = 0; ismplx < dim; ismplx++)
         {
-          new_simplexes[ismplx]->points[0] = leaf->points[face];
-          new_simplexes[ismplx]->points[1] = neighbor->points[far];
+          POINT(new_simplexes[ismplx], 0) = POINT(leaf, face);
+          POINT(new_simplexes[ismplx], 1) = POINT(neighbor, far);
 
           /* The points marked face and far in the original simplexes are the
              vertices that will correspond to all and only external faces in the
@@ -622,7 +629,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                 }
               if (idx_on_face > ismplx) idx_on_face--;
 
-              new_simplexes[ismplx]->points[idx_on_face+2] = leaf->points[j];
+              POINT(new_simplexes[ismplx], idx_on_face+2) = POINT(leaf, j);
             }
         }
 
@@ -639,7 +646,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                   continue;
                 }
               if (!point_in_simplex(tree, old_neighbors2[jsmplx],
-                                    leaf->points[left_out[ismplx]]))
+                                    POINT(leaf, left_out[ismplx])))
                 break;
             }
           assert(("Inconsistency found in simplex tree structure, "
@@ -647,22 +654,22 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                   jsmplx < dim || null_option));
 
           {
-            simplex_tree_node *ext;
+            simplex_index ext;
             if (jsmplx < dim)
-              ext = new_simplexes[ismplx]->links[0] = old_neighbors2[jsmplx];
+              ext = LINK(new_simplexes[ismplx], 0) = old_neighbors2[jsmplx];
             else
-              ext = new_simplexes[ismplx]->links[0] = NULL;
+              ext = LINK(new_simplexes[ismplx], 0) = 0;
 
             if (ext)
               {
                 int j;
                 for (j = 0; j < dim+1; j++)
-                  if (ext->links[j] == neighbor)
+                  if (LINK(ext, j) == neighbor)
                     break;
                 assert(("Inconsistency found in simplex tree structure, "
                         "no reverse link found",
                         j < dim+1));
-                ext->links[j] = new_simplexes[ismplx];
+                LINK(ext, j) = new_simplexes[ismplx];
               }
           }
 
@@ -676,7 +683,7 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                   continue;
                 }
               if (!point_in_simplex(tree, old_neighbors1[jsmplx],
-                                    leaf->points[left_out[ismplx]]))
+                                    POINT(leaf, left_out[ismplx])))
                 break;
             }
           assert(("Inconsistency found in simplex tree structure, "
@@ -684,22 +691,22 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                   jsmplx < dim || null_option));
 
           {
-            simplex_tree_node *ext;
+            simplex_index ext;
             if (jsmplx < dim)
-              ext = new_simplexes[ismplx]->links[1] = old_neighbors1[jsmplx];
+              ext = LINK(new_simplexes[ismplx], 1) = old_neighbors1[jsmplx];
             else
-              ext = new_simplexes[ismplx]->links[1] = NULL;
+              ext = LINK(new_simplexes[ismplx], 1) = 0;
 
             if (ext)
               {
                 int j;
                 for (j = 0; j < dim+1; j++)
-                  if (ext->links[j] == leaf)
+                  if (LINK(ext, j) == leaf)
                     break;
                 assert(("Inconsistency found in simplex tree structure, "
                         "no reverse link found",
                         j < dim+1));
-                ext->links[j] = new_simplexes[ismplx];
+                LINK(ext, j) = new_simplexes[ismplx];
               }
           }
         }
@@ -714,32 +721,32 @@ delaunay(simplex_tree *tree, simplex_tree_node *leaf,
                 {
                   if (ismplx == jsmplx) continue;
                   if (!point_in_simplex(tree, new_simplexes[jsmplx],
-                                        new_simplexes[ismplx]->points[i]))
+                                        POINT(new_simplexes[ismplx], i)))
                     break;
                 }
               assert(("Inconsistency found in simplex tree structure, "
                       "proper internal simplex not found",
                       jsmplx < dim+1));
-              new_simplexes[ismplx]->links[i] = new_simplexes[jsmplx];
+              LINK(new_simplexes[ismplx], i) = new_simplexes[jsmplx];
             }
         }
 
       for (i = 0; i < dim; i++)
         {
-          leaf->links[i] = new_simplexes[i];
-          neighbor->links[i] = new_simplexes[i];
+          LINK(leaf, i) = new_simplexes[i];
+          LINK(neighbor, i) = new_simplexes[i];
         }
-      leaf->links[dim] = neighbor;
-      neighbor->links[dim] = leaf;
+      LINK(leaf, dim) = neighbor;
+      LINK(neighbor, dim) = leaf;
 
       /* Now, recursively check the new external faces as they could now also
          need edge flips */
       for (ismplx = 0; ismplx < dim; ismplx++)
         for (i = 0; i < dim+1; i++)
           {
-            if (!leaf->links[ismplx]->links[i]) continue;
-            delaunay(tree, leaf->links[ismplx], data, i, accel);
-            if (leaf->links[ismplx]->flipped) break;
+            if (!LINK(LINK(leaf, ismplx), i)) continue;
+            delaunay(tree, LINK(leaf, ismplx), data, i, accel);
+            if (SLINK(leaf, ismplx)->flipped) break;
           }
     }
 
@@ -761,7 +768,7 @@ dnrm22(gsl_vector *v)
 }
 
 int
-in_hypersphere(simplex_tree *tree, simplex_tree_node *node,
+in_hypersphere(simplex_tree *tree, simplex_index node,
                gsl_matrix *data,
                int idx, simplex_tree_accel *accel)
 {
@@ -801,22 +808,22 @@ in_hypersphere(simplex_tree *tree, simplex_tree_node *node,
    particular, Dr. John S. Eickemeyer's suggestion) on how to do this in a way
    that generalizes to arbitrary dimensionality. */
 int
-calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
+calculate_hypersphere(simplex_tree *tree, simplex_index node,
                       gsl_matrix *data,
                       gsl_vector *x0, double *r2,
                       simplex_tree_accel *accel)
 {
   int i, j;
   int dim = tree->dim;
-  accel->current_simplex = NULL;
+  accel->current_simplex = -1;
 
   for (i = 0; i < dim; i++)
     {
       gsl_vector_set(accel->coords, i, 0);
 
       gsl_vector_view vi, vi1;
-      int vi_idx = node->points[i];
-      int vi1_idx = node->points[i+1];
+      int vi_idx = POINT(node, i);
+      int vi1_idx = POINT(node, i+1);
 
       if (vi_idx < 0)
         vi = gsl_matrix_row(tree->seed_points, -vi_idx - 1);
@@ -849,7 +856,7 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
                       accel->coords, x0);
 
   gsl_vector_view first_point;
-  int idx = node->points[0];
+  int idx = POINT(node, 0);
   if (idx < 0)
     first_point = gsl_matrix_row(tree->seed_points, -idx - 1);
   else
@@ -867,14 +874,14 @@ calculate_hypersphere(simplex_tree *tree, simplex_tree_node *node,
 }
 
 int
-calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *data,
+calculate_bary_coords(simplex_tree *tree, simplex_index node, gsl_matrix *data,
                       gsl_vector *point,
                       simplex_tree_accel *accel)
 {
   if (!accel) accel = tree->accel;
   int dim = tree->dim;
   gsl_vector_view x0;
-  int x0_idx = node->points[dim];
+  int x0_idx = POINT(node, dim);
 
   if (x0_idx < 0)
     x0 = gsl_matrix_row(tree->seed_points, -x0_idx - 1);
@@ -890,7 +897,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
       for (i = 0; i < dim; i++)
         {
           gsl_vector_view p;
-          int xi_idx = node->points[i];
+          int xi_idx = POINT(node, i);
           if (xi_idx < 0)
             p = gsl_matrix_row(tree->seed_points, -xi_idx - 1);
           else
@@ -922,7 +929,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_tree_node *node, gsl_matrix *d
 }
 
 int
-contains_point(simplex_tree *tree, simplex_tree_node *node,
+contains_point(simplex_tree *tree, simplex_index node,
                gsl_matrix *data, gsl_vector *point,
                simplex_tree_accel *accel)
 {
@@ -945,14 +952,14 @@ contains_point(simplex_tree *tree, simplex_tree_node *node,
 }
 
 double
-interp_point(simplex_tree *tree, simplex_tree_node *leaf,
+interp_point(simplex_tree *tree, simplex_index leaf,
              gsl_matrix *data, gsl_vector *response, gsl_vector *point,
              simplex_tree_accel *accel)
 {
   int i;
   int dim = tree->dim;
 
-  assert(("Interpolation must be on a leaf node", leaf->leaf_p));
+  assert(("Interpolation must be on a leaf node", SIMP(leaf)->leaf_p));
   calculate_bary_coords(tree, leaf, data, point, accel);
 
   double tot = 0;
@@ -961,7 +968,7 @@ interp_point(simplex_tree *tree, simplex_tree_node *leaf,
     {
       double coord = gsl_vector_get(accel->coords, i);
       tot += coord;
-      int xi_idx = leaf->points[i];
+      int xi_idx = POINT(leaf, i);
       /* Only add a contribution if the point isn't a seed point */
       if (xi_idx >= 0)
         {
@@ -969,7 +976,7 @@ interp_point(simplex_tree *tree, simplex_tree_node *leaf,
           interp += coord * gsl_vector_get(response, xi_idx);
         }
     }
-  int idx = leaf->points[dim];
+  int idx = POINT(leaf, dim);
   /* Only add a contribution if the point isn't a seed point */
   if (idx >= 0)
     {

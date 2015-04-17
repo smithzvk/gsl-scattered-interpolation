@@ -15,8 +15,10 @@ Currently, this code supports:
 
 In the future I or others will add:
 
+- The ability to import triangulations from other sources (QHull, CGAL)
 - Arbitrary dimensionality Delaunay triangulation
-- Related computational geometry constructs: convex hulls, voronoi diagrams
+- Related computational geometry constructs: convex hulls, voronoi diagrams,
+  other low hanging fruit
 - Basic radial basis function (RBF) interpolation
 - Compactly supported RBF interpolation and "Fast" RBF methods
 - Kriging

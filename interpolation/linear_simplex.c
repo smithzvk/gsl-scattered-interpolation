@@ -64,17 +64,26 @@ simplex_tree_node_alloc(simplex_tree *tree)
   int i;
   int dim = tree->dim;
 
-  assert(("Ran out of room in simplex array",
-          tree->n_simplexes + 1 < tree->max_simplexes));
+  if (tree->n_simplexes + 1 >= tree->max_simplexes)
+    {
+      tree->max_simplexes *= 2;
+      tree->simplexes = realloc(tree->simplexes, tree->max_simplexes);
+    }
   simplex_tree_node *node = &(tree->simplexes[tree->n_simplexes]);
 
-  assert(("Ran out of room in point index array",
-          tree->n_pidx + dim + 1 < tree->max_pidx));
+  if (tree->n_pidx + dim + 1 >= tree->max_pidx)
+    {
+      tree->max_pidx *= 2;
+      tree->pidx = realloc(tree->pidx, tree->max_pidx);
+    }
   node->points = tree->n_pidx;
   tree->n_pidx += dim + 1;
 
-  assert(("Ran out of room in link index array",
-          tree->n_links + dim + 1 < tree->max_links));
+  if (tree->n_links + dim + 1 >= tree->max_links)
+    {
+      tree->max_links *= 2;
+      tree->links = realloc(tree->links, tree->max_links);
+    }
   node->links = tree->n_links;
   tree->n_links += dim + 1;
 

@@ -158,11 +158,12 @@ simplex_tree_free(simplex_tree *tree)
   free(tree->old_neighbors1);
   free(tree->old_neighbors2);
   free(tree->left_out);
-  free(tree->shift);
-  free(tree->scale);
-  free(tree->min);
-  free(tree->max);
+  gsl_vector_free(tree->shift);
+  gsl_vector_free(tree->scale);
+  gsl_vector_free(tree->min);
+  gsl_vector_free(tree->max);
   gsl_permutation_free(tree->shuffle);
+  gsl_vector_free(tree->tmp_vec);
 
   free(tree);
 }

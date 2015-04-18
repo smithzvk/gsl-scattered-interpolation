@@ -67,14 +67,15 @@ simplex_tree_node_alloc(simplex_tree *tree)
   if (tree->n_simplexes + 1 >= tree->max_simplexes)
     {
       tree->max_simplexes *= 2;
-      tree->simplexes = realloc(tree->simplexes, tree->max_simplexes);
+      tree->simplexes = realloc(tree->simplexes, (tree->max_simplexes
+                                                  * sizeof(simplex_tree_node)));
     }
   simplex_tree_node *node = &(tree->simplexes[tree->n_simplexes]);
 
   if (tree->n_pidx + dim + 1 >= tree->max_pidx)
     {
       tree->max_pidx *= 2;
-      tree->pidx = realloc(tree->pidx, tree->max_pidx);
+      tree->pidx = realloc(tree->pidx, tree->max_pidx * sizeof(int));
     }
   node->points = tree->n_pidx;
   tree->n_pidx += dim + 1;
@@ -82,7 +83,8 @@ simplex_tree_node_alloc(simplex_tree *tree)
   if (tree->n_links + dim + 1 >= tree->max_links)
     {
       tree->max_links *= 2;
-      tree->links = realloc(tree->links, tree->max_links);
+      tree->links = realloc(tree->links, (tree->max_links
+                                          * sizeof(simplex_index)));
     }
   node->links = tree->n_links;
   tree->n_links += dim + 1;

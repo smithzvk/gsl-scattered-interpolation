@@ -100,6 +100,7 @@ simplex_tree_alloc(int dim, int n_points)
   tree->dim = dim;
   tree->seed_points = gsl_matrix_alloc(dim+1, dim);
   tree->n_points = 0;
+  tree->max_points = n_points;
 
   /* A multiplicative factor to account for internal nodes */
   int overhead = 9;
@@ -299,6 +300,12 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
   for (i = 0; i < dim+1; i++)
     /* This is a special triangle that doesn't have neighbors to consider */
     LINK(0, i) = 0;
+
+  if (data && (tree->n_points + data->size1 > tree->max_points))
+    {
+      /* Not enough room in tree for these points */
+      return GSL_FAILURE;
+    }
 
   gsl_permutation_init(tree->shuffle);
   if (rng)

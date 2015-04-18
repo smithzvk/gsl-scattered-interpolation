@@ -31,6 +31,7 @@ typedef struct simplex_tree_struct
 
   gsl_matrix *seed_points;
   int n_points;
+  int max_points;
   int dim;
   gsl_vector *shift;
   gsl_vector *scale;

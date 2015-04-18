@@ -308,7 +308,7 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
     }
 
   gsl_permutation_init(tree->shuffle);
-  if (rng)
+  if (rng && data)
     gsl_ran_shuffle(rng, tree->shuffle->data, data->size1, sizeof(size_t));
 
   int ret = GSL_SUCCESS;

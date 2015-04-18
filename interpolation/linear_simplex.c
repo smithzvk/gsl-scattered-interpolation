@@ -301,19 +301,20 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
     /* This is a special triangle that doesn't have neighbors to consider */
     LINK(0, i) = 0;
 
-  if (data && (tree->n_points + data->size1 > tree->max_points))
-    {
-      /* Not enough room in tree for these points */
-      return GSL_FAILURE;
-    }
-
   gsl_permutation_init(tree->shuffle);
-  if (rng && data)
-    gsl_ran_shuffle(rng, tree->shuffle->data, data->size1, sizeof(size_t));
 
   int ret = GSL_SUCCESS;
   if (data)
     {
+      if (tree->n_points + data->size1 > tree->max_points)
+        {
+          /* Not enough room in tree for these points */
+          return GSL_FAILURE;
+        }
+
+      if (rng)
+        gsl_ran_shuffle(rng, tree->shuffle->data, data->size1, sizeof(size_t));
+
       for (i = 0; i < data->size1; i++)
         {
           gsl_vector_view new_point

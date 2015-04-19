@@ -281,11 +281,12 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
     radius = altitude/(dim+1);
   }
 
-  /* We then scale it up by a factor of 1000.  This ensures that the method is
-     robust to moderate outliers (points that are not within the min to max
-     range as derived from the data or the min and max parameters).  This is
-     arbitrary, but a useful safety net. */
-  gsl_matrix_scale(tree->seed_points, 1000/radius);
+  /* We then scale it up by a factor dependent on the machine precision
+     (1/GSL_ROOT5_DBL_EPSILON).  This ensures that the method is robust to
+     moderate outliers (points that are not within the min to max range as
+     derived from the data or the min and max parameters).  This is an
+     arbitrary but a useful safety net. */
+  gsl_matrix_scale(tree->seed_points, 1/(GSL_ROOT5_DBL_EPSILON * radius));
 
   /* We also apply the inverse of the shift and scale to these points as it
      simplifies the implementation. */

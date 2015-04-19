@@ -608,20 +608,20 @@ delaunay(simplex_tree *tree, simplex_index leaf,
           if (LINK(leaf, i) != neighbor)
             old_neighbors1[k++] = LINK(leaf, i);
           else
-            ok = 1;
+            ok++;
         assert(("Inconsistency found in simplex tree structure, "
-                "reverse link not found",
-                ok));
+                "didn't find one and only one reverse link",
+                ok == 1));
         ok = 0;
         k = 0;
         for (i = 0; i < dim+1; i++)
           if (LINK(neighbor, i) != leaf)
             old_neighbors2[k++] = LINK(neighbor, i);
           else
-            ok = 1;
+            ok++;
         assert(("Inconsistency found in simplex tree structure, "
-                "reverse link not found",
-                ok));
+                "didn't find one and only one reverse link",
+                ok == 1));
       }
 
       /* Allocate new simplexes */

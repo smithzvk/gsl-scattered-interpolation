@@ -883,8 +883,8 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
                         * (gsl_vector_get(&(vi.vector), j)
                            - gsl_vector_get(tree->shift, j)));
           double pij1 = (gsl_vector_get(tree->scale, j)
-                        * (gsl_vector_get(&(vi1.vector), j)
-                           - gsl_vector_get(tree->shift, j)));
+                         * (gsl_vector_get(&(vi1.vector), j)
+                            - gsl_vector_get(tree->shift, j)));
           gsl_vector_set(accel->coords, i, (gsl_vector_get(accel->coords, i)
                                             + pij*pij - pij1*pij1));
           gsl_matrix_set(accel->simplex_matrix, i, j, pij - pij1);

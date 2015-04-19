@@ -811,7 +811,10 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
   else
     point = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, idx));
 
-  calculate_hypersphere(tree, node, data, x0, &r2, accel);
+  /* If we cannot compute the hypersphere for any reason assume it is because
+     the points are degenerate (do not span the dimensionality). */
+  if (GSL_SUCCESS != calculate_hypersphere(tree, node, data, x0, &r2, accel))
+      return 1;
 
   /* Compute the square magnitude of displacement */
   double dist2 = 0;
@@ -828,6 +831,19 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
   /* Small correction to the radius to remove degenerate cases */
   return dist2 < (r2 * (1 - GSL_SQRT_DBL_EPSILON));
 }
+
+static int
+singular (const gsl_matrix * LU)
+{
+  size_t i, n = LU->size1;
+
+  for (i = 0; i < n; i++)
+    {
+      double u = gsl_matrix_get (LU, i, i);
+      if (u == 0) return 1;
+    }
+
+  return 0;
 }
 
 /* See http://steve.hollasch.net/cgindex/geometry/sphere4pts.html (in
@@ -878,8 +894,11 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
 
   int signum;
   gsl_linalg_LU_decomp(accel->simplex_matrix, accel->perm, &signum);
-  gsl_linalg_LU_solve(accel->simplex_matrix, accel->perm,
-                      accel->coords, x0);
+  if (singular(accel->simplex_matrix))
+    return GSL_FAILURE;
+
+  gsl_linalg_LU_solve(accel->simplex_matrix, accel->perm, accel->coords, x0);
+
 
   gsl_vector_view first_point;
   int idx = POINT(node, 0);

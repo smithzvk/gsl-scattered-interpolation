@@ -7,7 +7,6 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_interp.h>
-#include <gsl/gsl_interpsc.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
 

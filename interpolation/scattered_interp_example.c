@@ -5,7 +5,6 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
-#include <gsl/gsl_interpsc.h>
 #include <gsl/gsl_rng.h>
 #include "linear_simplex.h"
 #include "linear_simplex_integrity_check.h"

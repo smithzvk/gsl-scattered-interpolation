@@ -825,7 +825,9 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
       dist2 += val*val;
     }
 
-  return dist2 < r2;
+  /* Small correction to the radius to remove degenerate cases */
+  return dist2 < (r2 * (1 - GSL_SQRT_DBL_EPSILON));
+}
 }
 
 /* See http://steve.hollasch.net/cgindex/geometry/sphere4pts.html (in

@@ -160,66 +160,72 @@ void
 _output_triangulation(simplex_tree *tree, simplex_index node)
 {
   int i;
-  for (i = 0; i < tree->dim + 1; i++)
+  if (flines)
     {
-      int i1 = POINT(node, i);
-      int i2 = POINT(node, (i+1)%(tree->dim + 1));
+      for (i = 0; i < tree->dim + 1; i++)
+        {
+          int i1 = POINT(node, i);
+          int i2 = POINT(node, (i+1)%(tree->dim + 1));
 
-      gsl_vector_view p1, p2;
-      double r1, r2;
-      if (i1 < 0)
-        {
-          p1 = gsl_matrix_row(tree->seed_points, -i1 - 1);
-          r1 = 0;
-        }
-      else
-        {
-          p1 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
-          if (gresponse)
-            r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
+          gsl_vector_view p1, p2;
+          double r1, r2;
+          if (i1 < 0)
+            {
+              p1 = gsl_matrix_row(tree->seed_points, -i1 - 1);
+              r1 = 0;
+            }
           else
-            r1 = 0;
-        }
+            {
+              p1 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
+              if (gresponse)
+                r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
+              else
+                r1 = 0;
+            }
 
-      if (i2 < 0)
-        {
-          p2 = gsl_matrix_row(tree->seed_points, -i2 - 1);
-          r2 = 0;
-        }
-      else
-        {
-          p2 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
-          if (gresponse)
-            r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
+          if (i2 < 0)
+            {
+              p2 = gsl_matrix_row(tree->seed_points, -i2 - 1);
+              r2 = 0;
+            }
           else
-            r2 = 0;
-        }
+            {
+              p2 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
+              if (gresponse)
+                r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
+              else
+                r2 = 0;
+            }
 
-      fprintf(flines,
-              "%g %g %g\n%g %g %g\n\n\n",
-              gsl_vector_get(tree->scale, 0)
-              * (gsl_vector_get(&(p1.vector), 0)
-                 - gsl_vector_get(tree->shift, 0)),
-              gsl_vector_get(tree->scale, 1)
-              * (gsl_vector_get(&(p1.vector), 1)
-                 - gsl_vector_get(tree->shift, 1)),
-              r1,
-              gsl_vector_get(tree->scale, 0)
-              * (gsl_vector_get(&(p2.vector), 0)
-                 - gsl_vector_get(tree->shift, 0)),
-              gsl_vector_get(tree->scale, 1)
-              * (gsl_vector_get(&(p2.vector), 1)
-                 - gsl_vector_get(tree->shift, 1)),
-              r2);
+          fprintf(flines,
+                  "%g %g %g\n%g %g %g\n\n\n",
+                  gsl_vector_get(tree->scale, 0)
+                  * (gsl_vector_get(&(p1.vector), 0)
+                     - gsl_vector_get(tree->shift, 0)),
+                  gsl_vector_get(tree->scale, 1)
+                  * (gsl_vector_get(&(p1.vector), 1)
+                     - gsl_vector_get(tree->shift, 1)),
+                  r1,
+                  gsl_vector_get(tree->scale, 0)
+                  * (gsl_vector_get(&(p2.vector), 0)
+                     - gsl_vector_get(tree->shift, 0)),
+                  gsl_vector_get(tree->scale, 1)
+                  * (gsl_vector_get(&(p2.vector), 1)
+                     - gsl_vector_get(tree->shift, 1)),
+                  r2);
+        }
     }
-  gsl_vector *x0 = gsl_vector_alloc(tree->dim);
-  double r2;
-  calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
-  fprintf(fcircles, "%g %g %g\n",
-          gsl_vector_get(x0, 0),
-          gsl_vector_get(x0, 1),
-          sqrt(r2));
-  gsl_vector_free(x0);
+  if (fcircles)
+    {
+      gsl_vector *x0 = gsl_vector_alloc(tree->dim);
+      double r2;
+      calculate_hypersphere(tree, node, gdata, x0, &r2, tree->accel);
+      fprintf(fcircles, "%g %g %g\n",
+              gsl_vector_get(x0, 0),
+              gsl_vector_get(x0, 1),
+              sqrt(r2));
+      gsl_vector_free(x0);
+    }
 }
 
 void

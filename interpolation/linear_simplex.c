@@ -341,6 +341,7 @@ simplex_tree_accel_alloc(int dim)
   accel->perm = gsl_permutation_alloc(dim);
   accel->coords = gsl_vector_alloc(dim);
   accel->current_simplex = -1;
+  return accel;
 }
 
 void

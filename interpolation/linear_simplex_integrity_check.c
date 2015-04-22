@@ -56,12 +56,12 @@ in_list(simplex_index node, struct node_list *list)
 }
 
 void
-check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **seen,
+_check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **seen,
                  void (*fn)(simplex_tree *, simplex_index))
 {
   if (!SIMP(node)->leaf_p)
     {
-      check_leaf_nodes(tree, LINK(node, 0), seen, fn);
+      _check_leaf_nodes(tree, LINK(node, 0), seen, fn);
       return;
     }
 
@@ -115,10 +115,18 @@ check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **seen
           /* Recurse but only if we haven't seen this node yet */
           if (!in_list(neighbor, *seen))
             {
-              check_leaf_nodes(tree, neighbor, seen, fn);
+              _check_leaf_nodes(tree, neighbor, seen, fn);
             }
         }
     }
+}
+
+void
+check_leaf_nodes(simplex_tree *tree, void (*fn)(simplex_tree *, simplex_index))
+{
+  struct node_list *seen = NULL;
+  _check_leaf_nodes(tree, 0, &seen, fn);
+  free_list(seen); seen = NULL;
 }
 
 void
@@ -150,9 +158,7 @@ int
 check_delaunay(simplex_tree *tree, gsl_matrix *data)
 {
   gdata = data;
-  struct node_list *seen = NULL;
-  check_leaf_nodes(tree, 0, &seen, _check_delaunay);
-  free_list(seen); seen = NULL;
+  check_leaf_nodes(tree, _check_delaunay);
   return 1;
 }
 
@@ -260,9 +266,7 @@ output_triangulation(simplex_tree *tree, gsl_matrix *data, gsl_vector *response,
 
   gdata = data;
   gresponse = response;
-  struct node_list *seen = NULL;
-  check_leaf_nodes(tree, 0, &seen, _output_triangulation);
-  free_list(seen);
+  check_leaf_nodes(tree, _output_triangulation);
 
   if (flines) fclose(flines);
   if (fcircles) fclose(fcircles);

@@ -472,8 +472,27 @@ insert_point(simplex_tree *tree, simplex_index leaf,
   return GSL_SUCCESS;
 }
 
+int
+orthogonalize(gsl_matrix *mat)
+{
+  int i;
+  for (i = 0; i < mat->size1 - 1; i++)
+    {
+      gsl_vector_view vi = gsl_matrix_row(mat, i);
+      int j;
+      double vi_mag2 = dnrm22(&(vi.vector));
+      for (j = i+1; j < mat->size1; j++)
+        {
+          gsl_vector_view vj = gsl_matrix_row(mat, j);
+          double proj;
+          gsl_blas_ddot(&(vi.vector), &(vj.vector), &proj);
+          gsl_blas_daxpy(-proj/vi_mag2, &(vi.vector), &(vj.vector));
+        }
+    }
 
 
+  return GSL_SUCCESS;
+}
 
 int
 delaunay(simplex_tree *tree, simplex_index leaf,

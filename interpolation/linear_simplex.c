@@ -545,6 +545,37 @@ save_current_neighbors(simplex_tree *tree,
           ok == 1));
 }
 
+void static
+set_points(simplex_tree *tree,
+           simplex_index *new_simplexes, int ismplx,
+           simplex_index leaf, int face,
+           simplex_index neighbor, int far)
+{
+  POINT(new_simplexes[ismplx], 0) = POINT(leaf, face);
+  POINT(new_simplexes[ismplx], 1) = POINT(neighbor, far);
+
+  /* The points marked face and far in the original simplexes are the
+     vertices that will correspond to all and only external faces in the
+     new simplexes.  Face corresponds to the original first simplex and
+     identifies external neighbors that are on the original second
+     simplex, vice versa for far. */
+
+  int j;
+  for (j = 0; j < tree->dim + 1; j++)
+    {
+      /* We already included "face" */
+      if (j == face) continue;
+      int idx_on_face = j;
+      if (idx_on_face > face) idx_on_face--;
+
+      /* We need to exclude one point of the old simplex */
+      if (idx_on_face == ismplx) continue;
+      if (idx_on_face > ismplx) idx_on_face--;
+
+      POINT(new_simplexes[ismplx], idx_on_face+2) = POINT(leaf, j);
+    }
+}
+
 int
 delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,
@@ -607,35 +638,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
       /* Set points on simplexes */
       for (ismplx = 0; ismplx < dim; ismplx++)
-        {
-          POINT(new_simplexes[ismplx], 0) = POINT(leaf, face);
-          POINT(new_simplexes[ismplx], 1) = POINT(neighbor, far);
-
-          /* The points marked face and far in the original simplexes are the
-             vertices that will correspond to all and only external faces in the
-             new simplexes.  Face corresponds to the original first simplex and
-             identifies external neighbors that are on the original second
-             simplex, vice versa for far. */
-
-          int j;
-          for (j = 0; j < dim + 1; j++)
-            {
-              /* We already included "face" */
-              if (j == face) continue;
-              int idx_on_face = j;
-              if (idx_on_face > face) idx_on_face--;
-
-              /* We need to exclude one point of the old simplex */
-              if (idx_on_face == ismplx)
-                {
-                  left_out[ismplx] = j;
-                  continue;
-                }
-              if (idx_on_face > ismplx) idx_on_face--;
-
-              POINT(new_simplexes[ismplx], idx_on_face+2) = POINT(leaf, j);
-            }
-        }
+        set_points(tree, new_simplexes, ismplx, leaf, face, neighbor, far);
 
       /* External links */
       for (ismplx = 0; ismplx < dim; ismplx++)

@@ -43,6 +43,7 @@ typedef struct simplex_tree_struct
   simplex_index *old_neighbors1;
   simplex_index *old_neighbors2;
   int *left_out;
+  int *tmp_points;
   gsl_vector *tmp_vec1, *tmp_vec2;
   gsl_matrix *tmp_mat;
 } simplex_tree;
@@ -111,7 +112,12 @@ int in_hypersphere(simplex_tree *tree, simplex_index node,
                    gsl_matrix *data,
                    int idx, simplex_tree_accel *accel);
 
-int calculate_hypersphere(simplex_tree *tree, simplex_index node,
+int
+in_hypersphere_points(simplex_tree *tree, int *points,
+                      gsl_matrix *data,
+                      int idx, simplex_tree_accel *accel);
+
+int calculate_hypersphere(simplex_tree *tree, int *points,
                           gsl_matrix *data,
                           gsl_vector *x0, double *r2,
                           simplex_tree_accel *accel);

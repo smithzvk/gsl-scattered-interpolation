@@ -100,6 +100,7 @@ simplex_tree_alloc(int dim, int n_points)
   tree->tmp_vec1 = gsl_vector_alloc(dim);
   tree->tmp_vec2 = gsl_vector_alloc(dim);
   tree->tmp_mat = gsl_matrix_alloc(dim, dim);
+  tree->tmp_points = malloc((dim+1) * sizeof(int));
 
   return tree;
 }
@@ -125,6 +126,7 @@ simplex_tree_free(simplex_tree *tree)
   gsl_vector_free(tree->tmp_vec1);
   gsl_vector_free(tree->tmp_vec2);
   gsl_matrix_free(tree->tmp_mat);
+  free(tree->tmp_points);
 
   free(tree);
 }
@@ -800,6 +802,18 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
                gsl_matrix *data,
                int idx, simplex_tree_accel *accel)
 {
+  int i;
+  int *points = tree->tmp_points;
+  for (i = 0; i < tree->dim+1; i++)
+      points[i] = POINT(node, i);
+  return in_hypersphere_points(tree, points, data, idx, accel);
+}
+
+int
+in_hypersphere_points(simplex_tree *tree, int *points,
+                      gsl_matrix *data,
+                      int idx, simplex_tree_accel *accel)
+{
   gsl_vector *x0 = tree->tmp_vec1;
   double r2;
 
@@ -807,7 +821,7 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
 
   /* If we cannot compute the hypersphere for any reason assume it is because
      the points are degenerate (do not span the dimensionality). */
-  if (GSL_SUCCESS != calculate_hypersphere(tree, node, data, x0, &r2, accel))
+  if (GSL_SUCCESS != calculate_hypersphere(tree, points, data, x0, &r2, accel))
       return 1;
 
   /* Compute the square magnitude of displacement */
@@ -844,7 +858,7 @@ singular (const gsl_matrix * LU)
    particular, Dr. John S. Eickemeyer's suggestion) on how to do this in a way
    that generalizes to arbitrary dimensionality. */
 int
-calculate_hypersphere(simplex_tree *tree, simplex_index node,
+calculate_hypersphere(simplex_tree *tree, int *points,
                       gsl_matrix *data,
                       gsl_vector *x0, double *r2,
                       simplex_tree_accel *accel)
@@ -857,8 +871,8 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
     {
       gsl_vector_set(accel->coords, i, 0);
 
-      gsl_vector_view vi = DATA_POINT(data, POINT(node, i));
-      gsl_vector_view vi1 = DATA_POINT(data, POINT(node, i+1));
+      gsl_vector_view vi = DATA_POINT(data, points[i]);
+      gsl_vector_view vi1 = DATA_POINT(data, points[i+1]);
 
       for (j = 0; j < dim; j++)
         {
@@ -882,7 +896,7 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
 
   gsl_linalg_LU_solve(accel->simplex_matrix, accel->perm, accel->coords, x0);
 
-  gsl_vector_view first_point = DATA_POINT(data, POINT(node, 0));
+  gsl_vector_view first_point = DATA_POINT(data, points[0]);
 
   gsl_vector_memcpy(accel->coords, &(first_point.vector));
   /* Why doesn't this work? */

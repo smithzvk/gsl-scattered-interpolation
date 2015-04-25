@@ -770,7 +770,7 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
     }
 
   /* Small correction to the radius to remove degenerate cases */
-  return dist2 < (r2 * (1 - GSL_SQRT_DBL_EPSILON));
+  return dist2 < (r2 * (1 - 10*GSL_DBL_EPSILON));
 }
 
 static int

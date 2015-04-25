@@ -321,7 +321,7 @@ simplex_tree_init(simplex_tree *tree, gsl_matrix *data,
       for (i = 0; i < data->size1; i++)
         {
           gsl_vector_view new_point
-            = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, i));
+            = DATA_POINT(data, i);
           simplex_index leaf
             = find_leaf(tree, data, &(new_point.vector), tree->accel);
           ret = insert_point(tree, leaf, data, &(new_point.vector),
@@ -806,11 +806,7 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
   gsl_vector *x0 = tree->tmp_vec;
   double r2;
 
-  gsl_vector_view point;
-  if (idx < 0)
-    point = gsl_matrix_row(tree->seed_points, -idx - 1);
-  else
-    point = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, idx));
+  gsl_vector_view point = DATA_POINT(data, idx);
 
   /* If we cannot compute the hypersphere for any reason assume it is because
      the points are degenerate (do not span the dimensionality). */
@@ -864,19 +860,8 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
     {
       gsl_vector_set(accel->coords, i, 0);
 
-      gsl_vector_view vi, vi1;
-      int vi_idx = POINT(node, i);
-      int vi1_idx = POINT(node, i+1);
-
-      if (vi_idx < 0)
-        vi = gsl_matrix_row(tree->seed_points, -vi_idx - 1);
-      else
-        vi = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi_idx));
-
-      if (vi1_idx < 0)
-        vi1 = gsl_matrix_row(tree->seed_points, -vi1_idx - 1);
-      else
-        vi1 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, vi1_idx));
+      gsl_vector_view vi = DATA_POINT(data, POINT(node, i));
+      gsl_vector_view vi1 = DATA_POINT(data, POINT(node, i+1));
 
       for (j = 0; j < dim; j++)
         {
@@ -900,13 +885,7 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
 
   gsl_linalg_LU_solve(accel->simplex_matrix, accel->perm, accel->coords, x0);
 
-
-  gsl_vector_view first_point;
-  int idx = POINT(node, 0);
-  if (idx < 0)
-    first_point = gsl_matrix_row(tree->seed_points, -idx - 1);
-  else
-    first_point = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, idx));
+  gsl_vector_view first_point = DATA_POINT(data, POINT(node, 0));
 
   gsl_vector_memcpy(accel->coords, &(first_point.vector));
   /* Why doesn't this work? */
@@ -926,13 +905,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_index node, gsl_matrix *data,
 {
   if (!accel) accel = tree->accel;
   int dim = tree->dim;
-  gsl_vector_view x0;
-  int x0_idx = POINT(node, dim);
-
-  if (x0_idx < 0)
-    x0 = gsl_matrix_row(tree->seed_points, -x0_idx - 1);
-  else
-    x0 = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, x0_idx));
+  gsl_vector_view x0 = DATA_POINT(data, POINT(node, dim));
 
   if (node != accel->current_simplex)
     {
@@ -942,12 +915,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_index node, gsl_matrix *data,
 
       for (i = 0; i < dim; i++)
         {
-          gsl_vector_view p;
-          int xi_idx = POINT(node, i);
-          if (xi_idx < 0)
-            p = gsl_matrix_row(tree->seed_points, -xi_idx - 1);
-          else
-            p = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, xi_idx));
+          gsl_vector_view p = DATA_POINT(data, POINT(node, i));
           for (j = 0; j < dim; j++)
             {
               double pv = (gsl_vector_get(tree->scale, j)

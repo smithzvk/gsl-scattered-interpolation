@@ -144,7 +144,7 @@ _check_delaunay(simplex_tree *tree, simplex_index node)
   gsl_vector *pp = gsl_vector_alloc(tree->dim);
   for (i = 0; i < tree->n_points; i++)
     {
-      gsl_vector_view p = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i));
+      gsl_vector_view p = DATA_POINT(gdata, i);
       gsl_vector_memcpy(pp, &(p.vector));
       gsl_vector_sub(pp, tree->shift);
       gsl_vector_mul(pp, tree->scale);
@@ -173,55 +173,49 @@ _output_triangulation(simplex_tree *tree, simplex_index node)
     {
       for (i = 0; i < tree->dim + 1; i++)
         {
-          int i1 = POINT(node, i);
-          int i2 = POINT(node, (i+1)%(tree->dim + 1));
+          int j;
+          for (j = i+1; j < tree->dim+1; j++)
+            {
+              int i1 = POINT(node, i);
+              int i2 = POINT(node, j);
 
-          gsl_vector_view p1, p2;
-          double r1, r2;
-          if (i1 < 0)
-            {
-              p1 = gsl_matrix_row(tree->seed_points, -i1 - 1);
-              r1 = 0;
-            }
-          else
-            {
-              p1 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i1));
-              if (gresponse)
-                r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
+              double r1, r2;
+              gsl_vector_view p1 = DATA_POINT(gdata, i1);
+              if (i1 < 0)
+                  r1 = 0;
               else
-                r1 = 0;
-            }
+                if (gresponse)
+                  r1 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i1));
+                else
+                  r1 = 0;
 
-          if (i2 < 0)
-            {
-              p2 = gsl_matrix_row(tree->seed_points, -i2 - 1);
-              r2 = 0;
-            }
-          else
-            {
-              p2 = gsl_matrix_row(gdata, gsl_permutation_get(tree->shuffle, i2));
-              if (gresponse)
-                r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
+              gsl_vector_view p2 = DATA_POINT(gdata, i2);
+              if (i2 < 0)
+                  r2 = 0;
               else
-                r2 = 0;
-            }
+                if (gresponse)
+                  r2 = gsl_vector_get(gresponse, gsl_permutation_get(tree->shuffle, i2));
+                else
+                  r2 = 0;
 
-          fprintf(flines,
-                  "%g %g %g\n%g %g %g\n\n\n",
-                  gsl_vector_get(tree->scale, 0)
-                  * (gsl_vector_get(&(p1.vector), 0)
-                     - gsl_vector_get(tree->shift, 0)),
-                  gsl_vector_get(tree->scale, 1)
-                  * (gsl_vector_get(&(p1.vector), 1)
-                     - gsl_vector_get(tree->shift, 1)),
-                  r1,
-                  gsl_vector_get(tree->scale, 0)
-                  * (gsl_vector_get(&(p2.vector), 0)
-                     - gsl_vector_get(tree->shift, 0)),
-                  gsl_vector_get(tree->scale, 1)
-                  * (gsl_vector_get(&(p2.vector), 1)
-                     - gsl_vector_get(tree->shift, 1)),
-                  r2);
+              int k;
+              for (k = 0; k < tree->dim; k++)
+                {
+                  fprintf(flines, "%g ",
+                          gsl_vector_get(tree->scale, k)
+                          * (gsl_vector_get(&(p1.vector), k)
+                             - gsl_vector_get(tree->shift, k)));
+                }
+              fprintf(flines, "%g\n", r1);
+              for (k = 0; k < tree->dim; k++)
+                {
+                  fprintf(flines, "%g ",
+                          gsl_vector_get(tree->scale, k)
+                          * (gsl_vector_get(&(p2.vector), k)
+                             - gsl_vector_get(tree->shift, k)));
+                }
+              fprintf(flines, "%g\n\n\n", r2);
+            }
         }
     }
   if (fcircles)

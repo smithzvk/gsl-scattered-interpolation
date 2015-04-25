@@ -51,6 +51,20 @@ typedef struct simplex_tree_struct
 #define SLINK(NODE, I) (SIMP(LINK(NODE, I)))
 #define POINT(NODE, I) (tree->pidx[(I) + SIMP(NODE)->points])
 
+#define DATA_POINT(DATA, POINT) _data_point(tree, (DATA), (POINT))
+
+static inline gsl_vector_view
+_data_point(simplex_tree *tree, gsl_matrix *data, int point)
+{
+  gsl_vector_view view;
+  if (point < 0)
+    view = gsl_matrix_row(tree->seed_points, -(point) - 1);
+  else
+    view = gsl_matrix_row(data, gsl_permutation_get(tree->shuffle, point));
+
+  return view;
+}
+
 simplex_index simplex_tree_node_alloc(simplex_tree *tree);
 
 simplex_tree * simplex_tree_alloc(int dim, int n_points);

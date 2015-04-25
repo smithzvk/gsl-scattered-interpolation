@@ -59,15 +59,13 @@ void
 _check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **seen,
                  void (*fn)(simplex_tree *, simplex_index))
 {
-  if (!SIMP(node)->leaf_p)
-    {
-      _check_leaf_nodes(tree, LINK(node, 0), seen, fn);
-      return;
-    }
-
   *seen = cons(node, *seen);
 
   if (fn) (*fn)(tree, node);
+
+  assert(SIMP(node)->leaf_p);
+  assert(!(SIMP(node)->flipped));
+
   int i;
   /* General leaf health */
   int j, k;
@@ -124,8 +122,13 @@ _check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **see
 void
 check_leaf_nodes(simplex_tree *tree, void (*fn)(simplex_tree *, simplex_index))
 {
+  simplex_index leaf = 0;
+  while (!(SIMP(leaf)->leaf_p))
+    {
+      leaf = LINK(leaf, 0);
+    }
   struct node_list *seen = NULL;
-  _check_leaf_nodes(tree, 0, &seen, fn);
+  _check_leaf_nodes(tree, leaf, &seen, fn);
   free_list(seen); seen = NULL;
 }
 

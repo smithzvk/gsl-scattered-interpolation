@@ -527,6 +527,24 @@ flippable(simplex_tree *tree, gsl_matrix *data,
   return flippable;
 }
 
+void static
+save_current_neighbors(simplex_tree *tree,
+                       simplex_index leaf, simplex_index neighbor,
+                       simplex_index *old_neighbors)
+{
+  int k = 0;
+  int ok = 0;
+  int i;
+  for (i = 0; i < tree->dim+1; i++)
+    if (LINK(leaf, i) != neighbor)
+      old_neighbors[k++] = LINK(leaf, i);
+    else
+      ok++;
+  assert(("Inconsistency found in simplex tree structure, "
+          "didn't find one and only one reverse link",
+          ok == 1));
+}
+
 int
 delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,
@@ -577,28 +595,8 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       simplex_index *old_neighbors2 = tree->old_neighbors2;
 
       /* Save current neighbors */
-      {
-        int k = 0;
-        int ok = 0;
-        for (i = 0; i < dim+1; i++)
-          if (LINK(leaf, i) != neighbor)
-            old_neighbors1[k++] = LINK(leaf, i);
-          else
-            ok++;
-        assert(("Inconsistency found in simplex tree structure, "
-                "didn't find one and only one reverse link",
-                ok == 1));
-        ok = 0;
-        k = 0;
-        for (i = 0; i < dim+1; i++)
-          if (LINK(neighbor, i) != leaf)
-            old_neighbors2[k++] = LINK(neighbor, i);
-          else
-            ok++;
-        assert(("Inconsistency found in simplex tree structure, "
-                "didn't find one and only one reverse link",
-                ok == 1));
-      }
+      save_current_neighbors(tree, leaf, neighbor, old_neighbors1);
+      save_current_neighbors(tree, neighbor, leaf, old_neighbors2);
 
       /* Allocate new simplexes */
       int ismplx;

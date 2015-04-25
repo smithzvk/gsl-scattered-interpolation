@@ -775,9 +775,9 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       for (ismplx = 0; ismplx < dim; ismplx++)
         for (i = 0; i < dim+1; i++)
           {
+            if (SLINK(leaf, ismplx)->flipped) break;
             if (!LINK(LINK(leaf, ismplx), i)) continue;
             delaunay(tree, LINK(leaf, ismplx), data, i, accel);
-            if (SLINK(leaf, ismplx)->flipped) break;
           }
     }
 

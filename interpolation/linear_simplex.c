@@ -612,6 +612,29 @@ set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
     }
 }
 
+void static
+set_internal_links(simplex_tree *tree,
+                   simplex_index *new_simplexes, int ismplx)
+{
+  int i;
+  int dim = tree->dim;
+  for (i = 2; i < dim+1; i++)
+    {
+      int jsmplx;
+      for (jsmplx = 0; jsmplx < dim; jsmplx++)
+        {
+          if (ismplx == jsmplx) continue;
+          if (!point_in_simplex(tree, new_simplexes[jsmplx],
+                                POINT(new_simplexes[ismplx], i)))
+            break;
+        }
+      assert(("Inconsistency found in simplex tree structure, "
+              "proper internal simplex not found",
+              jsmplx < dim+1));
+      LINK(new_simplexes[ismplx], i) = new_simplexes[jsmplx];
+    }
+}
+
 int
 delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,
@@ -687,23 +710,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
       /* Internal links */
       for (ismplx = 0; ismplx < dim; ismplx++)
-        {
-          int jsmplx;
-          for (i = 2; i < dim+1; i++)
-            {
-              for (jsmplx = 0; jsmplx < dim; jsmplx++)
-                {
-                  if (ismplx == jsmplx) continue;
-                  if (!point_in_simplex(tree, new_simplexes[jsmplx],
-                                        POINT(new_simplexes[ismplx], i)))
-                    break;
-                }
-              assert(("Inconsistency found in simplex tree structure, "
-                      "proper internal simplex not found",
-                      jsmplx < dim+1));
-              LINK(new_simplexes[ismplx], i) = new_simplexes[jsmplx];
-            }
-        }
+        set_internal_links(tree, new_simplexes, ismplx);
 
       for (i = 0; i < dim; i++)
         {

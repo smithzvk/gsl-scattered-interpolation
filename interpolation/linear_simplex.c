@@ -505,6 +505,8 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
   int dim = tree->dim;
 
+  /* We never will flip the initial simplex */
+  assert(leaf);
   if (!LINK(leaf, face)) return GSL_SUCCESS;
   assert(("Checking if a flip is necessary on an already flipped simplex",
           !SIMP(leaf)->flipped));
@@ -512,6 +514,8 @@ delaunay(simplex_tree *tree, simplex_index leaf,
           SIMP(leaf)->leaf_p));
 
   simplex_index neighbor = LINK(leaf, face);
+  /* The initial simplex should never be a neighbor */
+  assert(neighbor);
   assert(("Inconsistency found in simplex tree structure, "
           "neighbor to leaf not a leaf",
           SIMP(neighbor)->leaf_p));

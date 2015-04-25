@@ -141,7 +141,9 @@ simplex_tree_alloc(int dim, int n_points)
   tree->shuffle = gsl_permutation_alloc(n_points);
 
   /* Working memory for various purposes */
-  tree->tmp_vec = gsl_vector_alloc(dim);
+  tree->tmp_vec1 = gsl_vector_alloc(dim);
+  tree->tmp_vec2 = gsl_vector_alloc(dim);
+  tree->tmp_mat = gsl_matrix_alloc(dim, dim);
 
   return tree;
 }
@@ -164,7 +166,9 @@ simplex_tree_free(simplex_tree *tree)
   gsl_vector_free(tree->min);
   gsl_vector_free(tree->max);
   gsl_permutation_free(tree->shuffle);
-  gsl_vector_free(tree->tmp_vec);
+  gsl_vector_free(tree->tmp_vec1);
+  gsl_vector_free(tree->tmp_vec2);
+  gsl_matrix_free(tree->tmp_mat);
 
   free(tree);
 }
@@ -803,7 +807,7 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
                gsl_matrix *data,
                int idx, simplex_tree_accel *accel)
 {
-  gsl_vector *x0 = tree->tmp_vec;
+  gsl_vector *x0 = tree->tmp_vec1;
   double r2;
 
   gsl_vector_view point = DATA_POINT(data, idx);
@@ -932,7 +936,7 @@ calculate_bary_coords(simplex_tree *tree, simplex_index node, gsl_matrix *data,
       gsl_linalg_LU_decomp(accel->simplex_matrix, accel->perm, &signum);
     }
 
-  gsl_vector *pp = tree->tmp_vec;
+  gsl_vector *pp = tree->tmp_vec1;
   gsl_vector_memcpy(pp, point);
   gsl_vector_sub(pp, &(x0.vector));
   gsl_vector_mul(pp, tree->scale);

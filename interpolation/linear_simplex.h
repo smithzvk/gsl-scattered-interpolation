@@ -43,7 +43,8 @@ typedef struct simplex_tree_struct
   simplex_index *old_neighbors1;
   simplex_index *old_neighbors2;
   int *left_out;
-  gsl_vector *tmp_vec;
+  gsl_vector *tmp_vec1, *tmp_vec2;
+  gsl_matrix *tmp_mat;
 } simplex_tree;
 
 #define SIMP(I) (&(tree->simplexes[(I)]))

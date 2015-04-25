@@ -470,40 +470,14 @@ insert_point(simplex_tree *tree, simplex_index leaf,
   return GSL_SUCCESS;
 }
 
-int
-delaunay(simplex_tree *tree, simplex_index leaf,
-         gsl_matrix *data,
-         /* face is the index in the simplex that identifies the face */
-         int face,
-         simplex_tree_accel *accel)
+static int
+flippable(simplex_tree *tree, gsl_matrix *data,
+          simplex_index leaf, int face,
+          simplex_index neighbor, int far,
+          int *left_out)
 {
-  int i;
-
   int dim = tree->dim;
-
-  /* We never will flip the initial simplex */
-  assert(leaf);
-  if (!LINK(leaf, face)) return GSL_SUCCESS;
-  assert(("Checking if a flip is necessary on an already flipped simplex",
-          !SIMP(leaf)->flipped));
-  assert(("Checking if a flip is necessary on a non-leaf simplex",
-          SIMP(leaf)->leaf_p));
-
-  simplex_index neighbor = LINK(leaf, face);
-  /* The initial simplex should never be a neighbor */
-  assert(neighbor);
-  assert(("Inconsistency found in simplex tree structure, "
-          "neighbor to leaf not a leaf",
-          SIMP(neighbor)->leaf_p));
-
-  /* Find far point */
-  int far;
-  FIND(far, LINK(neighbor, far) == leaf, "reverse link not found");
-
-  int ret = 0;
-
   int flippable = 1;
-  int *left_out = tree->left_out;
 
   gsl_vector_view p_face = DATA_POINT(data, POINT(leaf, face));
   gsl_vector_view p_far = DATA_POINT(data, POINT(neighbor, far));
@@ -512,6 +486,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
   int ismplx;
   for (ismplx = 0; ismplx < dim; ismplx++)
     {
+      int i;
       for (i = 0; i < dim + 1; i++)
         {
           /* "face" is the offset and left_out[ismplx] defines the normal */
@@ -549,8 +524,42 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
       if (!flippable) break;
     }
+  return flippable;
+}
 
-  if (flippable
+int
+delaunay(simplex_tree *tree, simplex_index leaf,
+         gsl_matrix *data,
+         /* face is the index in the simplex that identifies the face */
+         int face,
+         simplex_tree_accel *accel)
+{
+  int i;
+
+  int dim = tree->dim;
+
+  /* We never will flip the initial simplex */
+  assert(leaf);
+  if (!LINK(leaf, face)) return GSL_SUCCESS;
+  assert(("Checking if a flip is necessary on an already flipped simplex",
+          !SIMP(leaf)->flipped));
+  assert(("Checking if a flip is necessary on a non-leaf simplex",
+          SIMP(leaf)->leaf_p));
+
+  simplex_index neighbor = LINK(leaf, face);
+  /* The initial simplex should never be a neighbor */
+  assert(neighbor);
+  assert(("Inconsistency found in simplex tree structure, "
+          "neighbor to leaf not a leaf",
+          SIMP(neighbor)->leaf_p));
+
+  /* Find far point */
+  int far;
+  FIND(far, LINK(neighbor, far) == leaf, "reverse link not found");
+
+  int ret = 0;
+  int *left_out = tree->left_out;
+  if (flippable(tree, data, leaf, face, neighbor, far, left_out)
       && in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
     {
       ret = 1;

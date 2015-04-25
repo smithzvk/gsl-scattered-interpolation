@@ -528,7 +528,57 @@ delaunay(simplex_tree *tree, simplex_index leaf,
           far < dim+1));
 
   int ret = 0;
-  if (in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
+
+  int flippable = 1;
+  int *left_out = tree->left_out;
+
+  gsl_vector_view p_face = DATA_POINT(data, POINT(leaf, face));
+  gsl_vector_view p_far = DATA_POINT(data, POINT(neighbor, far));
+  gsl_vector_view p_left_out;
+  gsl_vector_view view;
+  int ismplx;
+  for (ismplx = 0; ismplx < dim; ismplx++)
+    {
+      for (i = 0; i < dim + 1; i++)
+        {
+          /* "face" is the offset and left_out[ismplx] defines the normal */
+          if (i == face) continue;
+          int idx_on_face = i;
+          if (idx_on_face > face) idx_on_face--;
+          if (idx_on_face == ismplx)
+            {
+              left_out[ismplx] = i;
+              continue;
+            }
+          if (idx_on_face > ismplx) idx_on_face--;
+
+          /* This part only runs dim-1 times */
+          gsl_vector_view p = DATA_POINT(data, POINT(leaf, i));
+          view = gsl_matrix_row(tree->tmp_mat, idx_on_face);
+          gsl_vector_memcpy(&(view.vector), &(p.vector));
+          gsl_vector_sub(&(view.vector), &(p_face.vector));
+        }
+      /* Use the point left over to define the direction of the normal. */
+      p_left_out = DATA_POINT(data, POINT(leaf, left_out[ismplx]));
+      view = gsl_matrix_row(tree->tmp_mat, dim-1);
+      gsl_vector_memcpy(&(view.vector), &(p_left_out.vector));
+      gsl_vector_sub(&(view.vector), &(p_face.vector));
+
+      orthogonalize(tree->tmp_mat);
+
+      gsl_vector *v = tree->tmp_vec1;
+      gsl_vector_memcpy(v, &(p_far.vector));
+      gsl_vector_sub(v, &(p_face.vector));
+
+      double proj;
+      gsl_blas_ddot(&(view.vector), v, &proj);
+      flippable &= (proj > 0);
+
+      if (!flippable) break;
+    }
+
+  if (flippable
+      && in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
     {
       ret = 1;
       /* This should always be true as you will never flip an edge in 1D */
@@ -543,7 +593,6 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       simplex_index *new_simplexes = tree->new_simplexes;
       simplex_index *old_neighbors1 = tree->old_neighbors1;
       simplex_index *old_neighbors2 = tree->old_neighbors2;
-      int *left_out = tree->left_out;
 
       /* Save current neighbors */
       {

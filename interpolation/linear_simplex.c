@@ -576,6 +576,42 @@ set_points(simplex_tree *tree,
     }
 }
 
+void static
+set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
+                   simplex_index neighbor, int neighbor_set,
+                   simplex_index new_simplex,
+                   int point_left_out)
+{
+  int dim = tree->dim;
+  int jsmplx, null_option = 0;
+  for (jsmplx = 0; jsmplx < dim; jsmplx++)
+    {
+      if (!old_neighbors[jsmplx])
+        {
+          null_option = 1;
+          continue;
+        }
+      if (!point_in_simplex(tree, old_neighbors[jsmplx], point_left_out))
+        break;
+    }
+  assert(("Inconsistency found in simplex tree structure, "
+          "no proper external link found",
+          jsmplx < dim || null_option));
+
+  simplex_index ext;
+  if (jsmplx < dim)
+    ext = LINK(new_simplex, neighbor_set) = old_neighbors[jsmplx];
+  else
+    ext = LINK(new_simplex, neighbor_set) = 0;
+
+  if (ext)
+    {
+      int j;
+      FIND(j, LINK(ext, j) == neighbor, "no reverse link found");
+      LINK(ext, j) = new_simplex;
+    }
+}
+
 int
 delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,
@@ -643,69 +679,10 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       /* External links */
       for (ismplx = 0; ismplx < dim; ismplx++)
         {
-          int jsmplx;
-          int null_option = 0;
-          for (jsmplx = 0; jsmplx < dim; jsmplx++)
-            {
-              if (!old_neighbors2[jsmplx])
-                {
-                  null_option = 1;
-                  continue;
-                }
-              if (!point_in_simplex(tree, old_neighbors2[jsmplx],
-                                    POINT(leaf, left_out[ismplx])))
-                break;
-            }
-          assert(("Inconsistency found in simplex tree structure, "
-                  "no proper external link found",
-                  jsmplx < dim || null_option));
-
-          {
-            simplex_index ext;
-            if (jsmplx < dim)
-              ext = LINK(new_simplexes[ismplx], 0) = old_neighbors2[jsmplx];
-            else
-              ext = LINK(new_simplexes[ismplx], 0) = 0;
-
-            if (ext)
-              {
-                int j;
-                FIND(j, LINK(ext, j) == neighbor, "no reverse link found");
-                LINK(ext, j) = new_simplexes[ismplx];
-              }
-          }
-
-
-          null_option = 0;
-          for (jsmplx = 0; jsmplx < dim; jsmplx++)
-            {
-              if (!old_neighbors1[jsmplx])
-                {
-                  null_option = 1;
-                  continue;
-                }
-              if (!point_in_simplex(tree, old_neighbors1[jsmplx],
-                                    POINT(leaf, left_out[ismplx])))
-                break;
-            }
-          assert(("Inconsistency found in simplex tree structure, "
-                  "no proper external link found",
-                  jsmplx < dim || null_option));
-
-          {
-            simplex_index ext;
-            if (jsmplx < dim)
-              ext = LINK(new_simplexes[ismplx], 1) = old_neighbors1[jsmplx];
-            else
-              ext = LINK(new_simplexes[ismplx], 1) = 0;
-
-            if (ext)
-              {
-                int j;
-                FIND(j, LINK(ext, j) == leaf, "no reverse link found");
-                LINK(ext, j) = new_simplexes[ismplx];
-              }
-          }
+          set_external_links(tree, old_neighbors2, neighbor, 0,
+                             new_simplexes[ismplx], POINT(leaf, left_out[ismplx]));
+          set_external_links(tree, old_neighbors1, leaf, 1,
+                             new_simplexes[ismplx], POINT(leaf, left_out[ismplx]));
         }
 
       /* Internal links */

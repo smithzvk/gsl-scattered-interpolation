@@ -427,12 +427,7 @@ insert_point(simplex_tree *tree, simplex_index leaf,
       /* Fix the neighbor links for the existing leaf nodes */
       if (neighbor)
         {
-          for (j = 0; j < dim+1; j++)
-            if (LINK(neighbor, j) == leaf)
-              break;
-          assert(("Inconsistency found in simplex tree structure, "
-                  "no reverse link",
-                  j < dim+1));
+          FIND(j, LINK(neighbor, j) == leaf, "no reverse link");
           LINK(neighbor, j) = new_simplexes[i];
         }
     }
@@ -503,14 +498,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
   /* Find far point */
   int far;
-  for (far = 0; far < dim+1; far++)
-    {
-      if (LINK(neighbor, far) == leaf)
-        break;
-    }
-  assert(("Inconsistency found in simplex tree structure, "
-          "reverse link not found",
-          far < dim+1));
+  FIND(far, LINK(neighbor, far) == leaf, "reverse link not found");
 
   int ret = 0;
 
@@ -672,12 +660,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
             if (ext)
               {
                 int j;
-                for (j = 0; j < dim+1; j++)
-                  if (LINK(ext, j) == neighbor)
-                    break;
-                assert(("Inconsistency found in simplex tree structure, "
-                        "no reverse link found",
-                        j < dim+1));
+                FIND(j, LINK(ext, j) == neighbor, "no reverse link found");
                 LINK(ext, j) = new_simplexes[ismplx];
               }
           }
@@ -709,12 +692,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
             if (ext)
               {
                 int j;
-                for (j = 0; j < dim+1; j++)
-                  if (LINK(ext, j) == leaf)
-                    break;
-                assert(("Inconsistency found in simplex tree structure, "
-                        "no reverse link found",
-                        j < dim+1));
+                FIND(j, LINK(ext, j) == leaf, "no reverse link found");
                 LINK(ext, j) = new_simplexes[ismplx];
               }
           }

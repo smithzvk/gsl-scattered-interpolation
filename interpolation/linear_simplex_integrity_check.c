@@ -95,12 +95,8 @@ _check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **see
                     "point i defines face between node and neighbor "
                     "but point i is also in neighbor",
                     POINT(node, i) != POINT(neighbor, k)));
-          for (j = 0; j < tree->dim+1; j++)
-            if (LINK(neighbor, j) == node)
-              break;
-          assert(("Inconsistency found in simplex tree structure, "
-                  "node is not in the neighbor list of its neighbor",
-                  j < tree->dim+1));
+          FIND(j, LINK(neighbor, j) == node,
+               "node is not in the neighbor list of its neighbor");
           for (k = 0; k < tree->dim+1; k++)
             assert(("Inconsistency found in simplex tree structure, ",
                     "point j defines face between neighbor and node "

@@ -67,6 +67,16 @@ _data_point(simplex_tree *tree, gsl_matrix *data, int point)
   return view;
 }
 
+#define FIND(VAR, PRED, ...)                            \
+  for (VAR = 0; VAR < tree->dim+1; VAR++)               \
+    {                                                   \
+      if (PRED)                                         \
+        break;                                          \
+    }                                                   \
+  assert(("Couldn't satisfy predicate: ",               \
+          PRED, ""__VA_ARGS__"", VAR < tree->dim+1));
+
+
 simplex_index simplex_tree_node_alloc(simplex_tree *tree);
 
 simplex_tree * simplex_tree_alloc(int dim, int n_points);

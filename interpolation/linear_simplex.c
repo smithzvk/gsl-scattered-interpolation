@@ -10,50 +10,6 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
 
-
-/*
-
-  For a thorough discussion of this method, see _Computational Geometry:
-  Application and Algorithms_ chapter 9 or _Numerical Recipes: Third Edition_
-  section 21.6.  The structure of the triangulation tree is as follows (I use the
-  word triangle here, but all of this applies to arbitrary dimensionality):
-
-  - This is not actually a tree but much about its use, structure, and properties
-  are tree-like, so I call it one.
-
-  - Leaf nodes correspond to triangles in the triangulation.  Internal nodes
-  correspond to triangles that were part of the triangulation at some point in
-  the building procedure, but have sense become invalid due to a sub-division
-  and/or edge flip.
-
-  - The internal nodes form a DAG usually moving from larger to smaller triangles
-  which you can think of as sub-triangles, but this isn't strictly true due to
-  edge flips.
-
-  - The leaf nodes don't have sub-triangles, but they do have links to
-  neighboring triangles, which is needed to create an efficient building
-  algorithm.
-
-  - The expected size of this tree will be 9N where N is the number of points, due
-  to the randomness of the method, this is only expected.  Building the tree is
-  expected to take O(N\log N) for a randomized data set (O(n^2) worst case).
-  Finding a triangle that contains a point is expected to take O(\log N) time.
-
-  A few other notes when interpreting this code.
-
-  - All leaf nodes are linked to their neighbors except for the top-level
-  triangle, which must be treated specially.  For this triangle, its neighbor
-  links are NULL.
-
-  - Faces, the things that separate simplexes/triangles, are defined by d unique
-  points where d is the dimensionality.  In the context of a simplex, a face is
-  identified by the index into the d+1 length array of data indexes that is not
-  involved with the face.  This face index is the index into the links array.
-  This is a nuanced structure.  Study the point insertion function to understand
-  how this works.
-
-*/
-
 #include "linear_simplex.h"
 #include "linear_simplex_integrity_check.h"
 
@@ -516,43 +472,8 @@ insert_point(simplex_tree *tree, simplex_index leaf,
   return GSL_SUCCESS;
 }
 
-/*
 
-  A few things to note.  We are doing a generalized edge flip.  In 2D, this means
-  removing two triangles and replacing them with two new triangles.  In $d$
-  dimensions, this corresponds to removing 2 simplexes and replacing them with $d$
-  simplexes.  The creation of the new simplexes is relatively simple, but due to
-  the book-keeping involved in keeping track of the neighbors (some of which are
-  newly created simplexes while others are external, previously existing
-  simplexes), this is a bit complex.  This explains the high-level algorithm:
 
-  For each new simplex $\{n f . idx\}$:
-
-  External links:
-
-  For each point, $i$, on the old separating face $F_n^{(n)} \equiv F_f^{(f)}$,
-  define the edge that corresponds to removing $i$ from the face denoted $E_i$
-
-  Link two simplexes to the new simplex, on face $F_n' \equiv \{f . E_i\}$ link
-  the simplex across $F_i^{(f)}$.  On $F_f' \equiv \{n . E_i\}$ link the simplex
-  across $F_i^{(n)}$.
-
-  Internal links:
-
-  It should be clear that new simplex should link with every other new simplex via
-  some face.  This means that there must be $d-1$ internal links from each
-  simplex.
-
-  For each point, $i$, on the old separating face $F_n^{(n)}$, define the faces
-  f_{ij} \equiv \{n f . idx_{-\{i,j\}}\} where $j$ is a index on edge $E_i$ (or,
-  equivalently, $j \ne i$).  $f_{ij}$ should link to the new simplex $\{ n f i
-  . idx_{-\{j\}} \}$.
-
-  When building the new simplexes, you need only iterate over them with index
-  $i$.  Then iterate over the edge with index $j$.  Then set links[0] and
-  links[1] to the external simplexes, then set links[j+2] to...
-
-*/
 
 int
 delaunay(simplex_tree *tree, simplex_index leaf,

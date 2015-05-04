@@ -14,6 +14,10 @@
 #include "edge_flip.h"
 #include "linear_simplex_integrity_check.h"
 
+/* Test if the pair of simplexes are flippable (i.e. the result of a flip of
+   that face to an edge would be a valid, non-reflex, simplicial complex).
+   While we compute this, we fill in left_out, which holds the vertex indices
+   that are left out of each potential new simplex */
 static int
 flippable(simplex_tree *tree, gsl_matrix *data,
           simplex_index leaf, int face,
@@ -71,6 +75,7 @@ flippable(simplex_tree *tree, gsl_matrix *data,
   return flippable;
 }
 
+/* Compute and store the current external neighbors of a given simplex */
 void static
 save_current_neighbors(simplex_tree *tree,
                        simplex_index leaf, simplex_index neighbor,
@@ -89,6 +94,7 @@ save_current_neighbors(simplex_tree *tree,
           ok == 1));
 }
 
+/* Set the points for a newly created simplex */
 void static
 set_points(simplex_tree *tree,
            simplex_index *new_simplexes, int ismplx,
@@ -120,6 +126,7 @@ set_points(simplex_tree *tree,
     }
 }
 
+/* Set the external links of a new simplex */
 void static
 set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
                    simplex_index neighbor, int neighbor_set,
@@ -156,6 +163,7 @@ set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
     }
 }
 
+/* Set the internal links of a new simplex */
 void static
 set_internal_links(simplex_tree *tree,
                    simplex_index *new_simplexes, int ismplx)
@@ -179,6 +187,8 @@ set_internal_links(simplex_tree *tree,
     }
 }
 
+/* Determine if the given pair of simplices can and should be "flipped" and, if
+   so, perform the flip updating the simplex_tree data structure. */
 int
 delaunay(simplex_tree *tree, simplex_index leaf,
          gsl_matrix *data,

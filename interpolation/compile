@@ -1,0 +1,8 @@
+#!/bin/bash
+
+gcc -g3 \
+    scattered_interp_example.c \
+    linear_simplex.c \
+    edge_flip.c \
+    linear_simplex_integrity_check.c \
+    -lgsl -lgslcblas -lm -I../

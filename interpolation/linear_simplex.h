@@ -118,8 +118,6 @@ int insert_point(simplex_tree *tree, simplex_index leaf,
                  gsl_matrix *data, gsl_vector *point,
                  simplex_tree_accel *accel);
 
-int delauney(simplex_tree *tree, simplex_index leaf,
-             gsl_matrix *data, simplex_tree_accel *accel);
 
 int in_hypersphere(simplex_tree *tree, simplex_index node,
                    gsl_matrix *data,

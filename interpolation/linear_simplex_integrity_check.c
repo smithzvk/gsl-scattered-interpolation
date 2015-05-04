@@ -1,11 +1,13 @@
+#include <config.h>
 #include <assert.h>
+#include <gsl/gsl_machine.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_permutation.h>
 #include <math.h>
 
+#include "linear_simplex_util.h"
 #include "linear_simplex.h"
-
 #include "linear_simplex_integrity_check.h"
 
 FILE *flines;

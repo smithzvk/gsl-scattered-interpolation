@@ -1,5 +1,8 @@
 #include <gsl/gsl_rng.h>
 
+#ifndef __GSL_LINEAR_SIMPLEX_H__
+#define __GSL_LINEAR_SIMPLEX_H__
+
 typedef int simplex_index;
 
 typedef struct simplex_tree_node_struct
@@ -149,5 +152,4 @@ double interp_point(simplex_tree *tree, simplex_index leaf,
                     gsl_vector *point,
                     simplex_tree_accel *accel);
 
-inline double dnrm22(gsl_vector *v);
-
+#endif

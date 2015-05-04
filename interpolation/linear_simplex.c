@@ -1,4 +1,3 @@
-
 #include <config.h>
 #include <assert.h>
 #include <gsl/gsl_errno.h>
@@ -10,9 +9,9 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
 
+#include "linear_simplex_util.h"
 #include "linear_simplex.h"
 #include "linear_simplex_integrity_check.h"
-#include "linear_simplex_util.h"
 
 simplex_index
 simplex_tree_node_alloc(simplex_tree *tree)

@@ -54,6 +54,11 @@ orthogonalize(gsl_matrix *mat)
           double proj;
           gsl_blas_ddot(&(vi.vector), &(vj.vector), &proj);
           gsl_blas_daxpy(-proj/vi_mag2, &(vi.vector), &(vj.vector));
+
+          double vj_mag2 = dnrm22(&(vj.vector));
+          if (vj_mag2 < vi_mag2*10*GSL_DBL_EPSILON)
+            /* The vectors don't span the space. */
+            return GSL_FAILURE;
         }
     }
 

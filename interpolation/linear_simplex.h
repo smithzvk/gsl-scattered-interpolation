@@ -128,10 +128,17 @@ in_hypersphere_points(simplex_tree *tree, int *points,
                       gsl_matrix *data,
                       int idx, simplex_tree_accel *accel);
 
-int calculate_hypersphere(simplex_tree *tree, int *points,
-                          gsl_matrix *data,
-                          gsl_vector *x0, double *r2,
-                          simplex_tree_accel *accel);
+int
+calculate_hypersphere(simplex_tree *tree, simplex_index node,
+                      gsl_matrix *data,
+                      gsl_vector *x0, double *r2,
+                      simplex_tree_accel *accel);
+
+int
+calculate_hypersphere_points(simplex_tree *tree, int *points,
+                             gsl_matrix *data,
+                             gsl_vector *x0, double *r2,
+                             simplex_tree_accel *accel);
 
 int calculate_bary_coords(simplex_tree *tree, simplex_index node,
                           gsl_matrix *data,

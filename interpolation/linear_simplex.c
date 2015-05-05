@@ -495,7 +495,8 @@ in_hypersphere_points(simplex_tree *tree, int *points,
 
   /* If we cannot compute the hypersphere for any reason assume it is because
      the points are degenerate (do not span the dimensionality). */
-  if (GSL_SUCCESS != calculate_hypersphere(tree, points, data, x0, &r2, accel))
+  if (GSL_SUCCESS
+      != calculate_hypersphere_points(tree, points, data, x0, &r2, accel))
       return 1;
 
   /* Compute the square magnitude of displacement */
@@ -514,14 +515,27 @@ in_hypersphere_points(simplex_tree *tree, int *points,
   return dist2 < (r2 * (1 - 10*GSL_DBL_EPSILON));
 }
 
+int
+calculate_hypersphere(simplex_tree *tree, simplex_index node,
+                      gsl_matrix *data,
+                      gsl_vector *x0, double *r2,
+                      simplex_tree_accel *accel)
+{
+  int i;
+  int *points = tree->tmp_points;
+  for (i = 0; i < tree->dim+1; i++)
+      points[i] = POINT(node, i);
+  return calculate_hypersphere_points(tree, points, data, x0, r2, accel);
+}
+
 /* See http://steve.hollasch.net/cgindex/geometry/sphere4pts.html (in
    particular, Dr. John S. Eickemeyer's suggestion) on how to do this in a way
    that generalizes to arbitrary dimensionality. */
 int
-calculate_hypersphere(simplex_tree *tree, int *points,
-                      gsl_matrix *data,
-                      gsl_vector *x0, double *r2,
-                      simplex_tree_accel *accel)
+calculate_hypersphere_points(simplex_tree *tree, int *points,
+                             gsl_matrix *data,
+                             gsl_vector *x0, double *r2,
+                             simplex_tree_accel *accel)
 {
   int i, j;
   int dim = tree->dim;

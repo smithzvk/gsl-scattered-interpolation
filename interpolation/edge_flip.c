@@ -14,10 +14,28 @@
 #include "edge_flip.h"
 #include "linear_simplex_integrity_check.h"
 
+static void
+set_left_out(simplex_tree *tree, int face, int *left_out)
+{
+  int dim = tree->dim;
+  int ismplx;
+  for (ismplx = 0; ismplx < dim; ismplx++)
+    {
+      int i;
+      for (i = 0; i < dim + 1; i++)
+        {
+          /* "face" is the offset and left_out[ismplx] defines the normal */
+          if (i == face) continue;
+          int idx_on_face = i;
+          if (idx_on_face > face) idx_on_face--;
+          if (idx_on_face == ismplx)
+            left_out[ismplx] = i;
+        }
+    }
+}
+
 /* Test if the pair of simplexes are flippable (i.e. the result of a flip of
-   that face to an edge would be a valid, non-reflex, simplicial complex).
-   While we compute this, we fill in left_out, which holds the vertex indices
-   that are left out of each potential new simplex */
+   that face to an edge would be a valid, non-reflex, simplicial complex). */
 static int
 flippable(simplex_tree *tree, gsl_matrix *data,
           simplex_index leaf, int face,
@@ -41,11 +59,7 @@ flippable(simplex_tree *tree, gsl_matrix *data,
           if (i == face) continue;
           int idx_on_face = i;
           if (idx_on_face > face) idx_on_face--;
-          if (idx_on_face == ismplx)
-            {
-              left_out[ismplx] = i;
-              continue;
-            }
+          if (idx_on_face == ismplx) continue;
           if (idx_on_face > ismplx) idx_on_face--;
 
           /* This part only runs dim-1 times */
@@ -54,13 +68,18 @@ flippable(simplex_tree *tree, gsl_matrix *data,
           gsl_vector_memcpy(&(view.vector), &(p.vector));
           gsl_vector_sub(&(view.vector), &(p_face.vector));
         }
+
       /* Use the point left over to define the direction of the normal. */
       p_left_out = DATA_POINT(data, POINT(leaf, left_out[ismplx]));
       view = gsl_matrix_row(tree->tmp_mat, dim-1);
       gsl_vector_memcpy(&(view.vector), &(p_left_out.vector));
       gsl_vector_sub(&(view.vector), &(p_face.vector));
 
-      orthogonalize(tree->tmp_mat);
+      if (GSL_SUCCESS != orthogonalize(tree->tmp_mat))
+        {
+          /* The vectors don't span the space, default to flippable. */
+          return 1;
+        }
 
       gsl_vector *v = tree->tmp_vec1;
       gsl_vector_memcpy(v, &(p_far.vector));
@@ -76,7 +95,7 @@ flippable(simplex_tree *tree, gsl_matrix *data,
 }
 
 /* Compute and store the current external neighbors of a given simplex */
-void static
+static void
 save_current_neighbors(simplex_tree *tree,
                        simplex_index leaf, simplex_index neighbor,
                        simplex_index *old_neighbors)
@@ -95,7 +114,7 @@ save_current_neighbors(simplex_tree *tree,
 }
 
 /* Set the points for a newly created simplex */
-void static
+static void
 set_points(simplex_tree *tree,
            simplex_index *new_simplexes, int ismplx,
            simplex_index leaf, int face,
@@ -127,7 +146,7 @@ set_points(simplex_tree *tree,
 }
 
 /* Set the external links of a new simplex */
-void static
+static void
 set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
                    simplex_index neighbor, int neighbor_set,
                    simplex_index new_simplex,
@@ -164,7 +183,7 @@ set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
 }
 
 /* Set the internal links of a new simplex */
-void static
+static void
 set_internal_links(simplex_tree *tree,
                    simplex_index *new_simplexes, int ismplx)
 {
@@ -221,9 +240,20 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
   int ret = 0;
   int *left_out = tree->left_out;
-  if (flippable(tree, data, leaf, face, neighbor, far, left_out)
-      && in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
+  if (in_hypersphere(tree, leaf, data, POINT(neighbor, far), accel))
     {
+      set_left_out(tree, face, left_out);
+      if (!flippable(tree, data, leaf, face, neighbor, far,
+                     left_out))
+        {
+          /* This can happen if you have a straight line of points.  In such a
+             situation, the hypersphere test will default to true but the
+             flippability test can return either true or false depending on
+             machine precision (the orthogonalize step won't work as the vectors
+             don't span the space) */
+          return 0;
+          /* assert(("Should be flippable", 0)); */
+        }
       assert(("in_hypersphere not reciprocal",
               in_hypersphere(tree, neighbor, data, POINT(leaf, face), accel)));
       ret = 1;

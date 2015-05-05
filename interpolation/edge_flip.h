@@ -15,24 +15,27 @@ flippable(simplex_tree *tree, gsl_matrix *data,
           simplex_index neighbor, int far,
           int *left_out);
 
-void static
+static void
+set_left_out(simplex_tree *tree, int face, int *left_out);
+
+static void
 save_current_neighbors(simplex_tree *tree,
                        simplex_index leaf, simplex_index neighbor,
                        simplex_index *old_neighbors);
 
-void static
+static void
 set_points(simplex_tree *tree,
            simplex_index *new_simplexes, int ismplx,
            simplex_index leaf, int face,
            simplex_index neighbor, int far);
 
-void static
+static void
 set_external_links(simplex_tree *tree, simplex_index *old_neighbors,
                    simplex_index neighbor, int neighbor_set,
                    simplex_index new_simplex,
                    int point_left_out);
 
-void static
+static void
 set_internal_links(simplex_tree *tree,
                    simplex_index *new_simplexes, int ismplx);
 

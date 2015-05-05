@@ -617,6 +617,9 @@ calculate_bary_coords(simplex_tree *tree, simplex_index node, gsl_matrix *data,
       gsl_linalg_LU_decomp(accel->simplex_matrix, accel->perm, &signum);
     }
 
+  if (singular(accel->simplex_matrix))
+    return GSL_FAILURE;
+
   gsl_vector *pp = tree->tmp_vec1;
   gsl_vector_memcpy(pp, point);
   gsl_vector_sub(pp, &(x0.vector));
@@ -634,7 +637,9 @@ contains_point(simplex_tree *tree, simplex_index node,
   int i;
   int dim = tree->dim;
 
-  calculate_bary_coords(tree, node, data, point, accel);
+  if (GSL_SUCCESS != calculate_bary_coords(tree, node, data, point, accel))
+    /* Simplex is singular, this means that the point cannot be within it. */
+    return 0;
 
   double tot = 0;
   for (i = 0; i < dim; i++)

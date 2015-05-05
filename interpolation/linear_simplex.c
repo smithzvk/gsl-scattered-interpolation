@@ -372,7 +372,7 @@ _find_leaf(simplex_tree *tree, simplex_index node, gsl_matrix *data,
             }
         }
     }
-  /* We should never get here.  What if something falls through the cracks.
+  /* We should never get here.  What if something falls through the cracks?
      This can happen if the point lies on a face.  Perhaps I could find the
      simplex that is the closest match and use that if none of them match.  This
      would be a useful fall-back. */
@@ -497,7 +497,7 @@ in_hypersphere_points(simplex_tree *tree, int *points,
      the points are degenerate (do not span the dimensionality). */
   if (GSL_SUCCESS
       != calculate_hypersphere_points(tree, points, data, x0, &r2, accel))
-      return 1;
+    return 1;
 
   /* Compute the square magnitude of displacement */
   double dist2 = 0;

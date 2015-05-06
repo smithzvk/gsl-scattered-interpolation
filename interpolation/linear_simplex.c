@@ -460,9 +460,8 @@ insert_point(simplex_tree *tree, simplex_index leaf,
   /* Now fix the Delaunay condition */
   for (i = 0; i < dim+1; i++)
     {
-      /* Only check if this is a leaf (if it isn't a leaf then we have surely
-         already looked at it) */
-      if (!(SLINK(leaf, i)->leaf_p)) continue;
+      /* Only check if the simplex hasn't already been flipped. */
+      if (SLINK(leaf, i)->flipped) continue;
       delaunay(tree, LINK(leaf, i), data, 0, accel);
     }
   check_delaunay(tree, data);

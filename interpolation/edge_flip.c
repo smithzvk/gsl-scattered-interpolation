@@ -7,7 +7,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_linalg.h>
-#include <gsl/gsl_cblas.h>
+#include <gsl/gsl_blas.h>
 
 #include "linear_simplex_util.h"
 #include "linear_simplex.h"

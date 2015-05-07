@@ -6,7 +6,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_linalg.h>
-#include <gsl/gsl_cblas.h>
+#include <gsl/gsl_blas.h>
 
 #ifndef __GSL_LINEAR_SIMPLEX_UTIL_H__
 #define __GSL_LINEAR_SIMPLEX_UTIL_H__

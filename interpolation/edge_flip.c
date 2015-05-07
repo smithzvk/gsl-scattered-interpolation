@@ -75,7 +75,7 @@ flippable(simplex_tree *tree, gsl_matrix *data,
       gsl_vector_memcpy(&(view.vector), &(p_left_out.vector));
       gsl_vector_sub(&(view.vector), &(p_face.vector));
 
-      if (GSL_SUCCESS != orthogonalize(tree->tmp_mat))
+      if (GSL_SUCCESS != orthonormalize(tree->tmp_mat))
         {
           /* The vectors don't span the space, default to flippable. */
           return 1;

@@ -39,26 +39,30 @@ dnrm22(gsl_vector *v)
   return mag2;
 }
 
+
 static inline int
-orthogonalize(gsl_matrix *mat)
+orthonormalize(gsl_matrix *mat)
 {
+  double scale = -1;
   int i;
-  for (i = 0; i < mat->size1 - 1; i++)
+  for (i = 0; i < mat->size1; i++)
     {
       gsl_vector_view vi = gsl_matrix_row(mat, i);
+      double mag = gsl_blas_dnrm2(&(vi.vector));
+      if (scale < mag) scale = mag;
+
+      if (mag < scale*100*GSL_DBL_EPSILON)
+        /* The vectors don't span the space. */
+        return GSL_FAILURE;
+
+      gsl_blas_dscal(1/mag, &(vi.vector));
       int j;
-      double vi_mag2 = dnrm22(&(vi.vector));
       for (j = i+1; j < mat->size1; j++)
         {
           gsl_vector_view vj = gsl_matrix_row(mat, j);
           double proj;
           gsl_blas_ddot(&(vi.vector), &(vj.vector), &proj);
-          gsl_blas_daxpy(-proj/vi_mag2, &(vi.vector), &(vj.vector));
-
-          double vj_mag2 = dnrm22(&(vj.vector));
-          if (vj_mag2 < vi_mag2*10*GSL_DBL_EPSILON)
-            /* The vectors don't span the space. */
-            return GSL_FAILURE;
+          gsl_blas_daxpy(-proj, &(vi.vector), &(vj.vector));
         }
     }
 

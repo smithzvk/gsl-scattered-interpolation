@@ -103,41 +103,28 @@ uniform_test(int min_dim, int max_dim)
 void
 gridded_test(int min_dim, int max_dim)
 {
-
-  /* Try on gridded points */
-  int n_grid = 4;
-  gsl_matrix *grid = gsl_matrix_alloc(n_grid * n_grid, 2);
-  {
-    int k = 0;
-    int i;
-    for (i = 0; i < n_grid; i++)
-      {
-        int j;
-        for (j = 0; j < n_grid; j++)
-          {
-            gsl_matrix_set(grid, k, 0, i);
-            gsl_matrix_set(grid, k, 1, j);
-            k++;
-          }
-      }
-  }
-
-  simplex_tree *tree = simplex_tree_alloc(2, n_grid * n_grid);
-  simplex_tree_init(tree, grid, NULL, NULL, 0, 0);
-
-  output_triangulation(tree, grid, NULL, 1,
-                       "/tmp/grid_tri.dat", NULL, NULL);
-
-  simplex_tree_free(tree);
-
-  /* tree = simplex_tree_alloc(2, n_grid * n_grid); */
-  /* simplex_tree_init(tree, grid, NULL, NULL, 0, 0); */
-
-  /* output_triangulation(tree, grid, NULL, 1, */
-  /*                      "/tmp/grid_tri.dat", NULL, NULL); */
-
-  /* simplex_tree_free(tree); */
-  gsl_matrix_free(grid);
+  int d;
+  for (d = min_dim; d <= max_dim; d++)
+    {
+      int dataset_size = pow(5, d);
+      gsl_matrix *data = gsl_matrix_alloc(dataset_size, d);
+      int i, j;
+      for (i = 0; i < dataset_size; i++)
+        {
+          int idx = i, j = 0;
+          while (j < d)
+            {
+              gsl_matrix_set(data, i, j, idx%5);
+              idx /= 5;
+              j++;
+            }
+        }
+      simplex_tree *tree = simplex_tree_alloc(d, dataset_size);
+      simplex_tree_init(tree, data, NULL, NULL,
+                        SIMPLEX_TREE_NOSTANDARDIZE, NULL);
+      simplex_tree_free(tree);
+      gsl_matrix_free(data);
+    }
 }
 
 /* Try this on a few real datasets */

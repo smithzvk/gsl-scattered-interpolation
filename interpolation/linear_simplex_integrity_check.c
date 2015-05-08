@@ -139,7 +139,7 @@ _check_delaunay(simplex_tree *tree, simplex_index node)
   double r2;
   int *points = tree->tmp_points1;
   for (i = 0; i < tree->dim+1; i++)
-      points[i] = POINT(node, i);
+    points[i] = POINT(node, i);
   calculate_hypersphere_points(tree, points, gdata, x0, &r2, tree->accel);
 
   /* Check every point to see if any lie within the sphere. */

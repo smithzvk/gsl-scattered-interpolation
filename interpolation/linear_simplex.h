@@ -5,12 +5,19 @@
 
 typedef int simplex_index;
 
+typedef enum
+  {
+    leaf_type = 0,
+    sub_dplus1_type,
+    sub_d_type,
+    sub_2_type
+  } node_type;
+
 typedef struct simplex_tree_node_struct
 {
   int points;
   simplex_index links;
-  /* Flags marking if this is a leaf or flipped */
-  unsigned int leaf_p:1, flipped:1;
+  node_type type:2;
 } simplex_tree_node;
 
 typedef struct
@@ -55,9 +62,24 @@ typedef struct simplex_tree_struct
 #define LINK(NODE, I) (tree->links[(I) + SIMP(NODE)->links])
 #define SLINK(NODE, I) (SIMP(LINK(NODE, I)))
 #define POINT(NODE, I) (tree->pidx[(I) + SIMP(NODE)->points])
+#define LEAF(NODE) (leaf_type == SIMP(NODE)->type)
+
+#define N_CHILDREN(NODE) _n_children(tree, NODE)
+static inline int
+_n_children(simplex_tree *tree, simplex_index node)
+{
+  simplex_tree_node *node_tmp = SIMP(node);
+  int n_children = 0;
+  if (node_tmp->type == sub_dplus1_type)
+    n_children = tree->dim+1;
+  else if (node_tmp->type == sub_d_type)
+    n_children = tree->dim;
+  else if (node_tmp->type == sub_2_type)
+    n_children = 2;
+  return n_children;
+}
 
 #define DATA_POINT(DATA, POINT) _data_point(tree, (DATA), (POINT))
-
 static inline gsl_vector_view
 _data_point(simplex_tree *tree, gsl_matrix *data, int point)
 {

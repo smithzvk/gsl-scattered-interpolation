@@ -65,8 +65,7 @@ _check_leaf_nodes(simplex_tree *tree, simplex_index node, struct node_list **see
 
   if (fn) (*fn)(tree, node);
 
-  assert(SIMP(node)->leaf_p);
-  assert(!(SIMP(node)->flipped));
+  assert(LEAF(node));
 
   int i;
   /* General leaf health */
@@ -121,7 +120,7 @@ void
 check_leaf_nodes(simplex_tree *tree, void (*fn)(simplex_tree *, simplex_index))
 {
   simplex_index leaf = 0;
-  while (!(SIMP(leaf)->leaf_p))
+  while (!LEAF(leaf))
     {
       leaf = LINK(leaf, 0);
     }

@@ -221,18 +221,16 @@ delaunay(simplex_tree *tree, simplex_index leaf,
 
   /* We never will flip the initial simplex */
   assert(leaf);
-  if (!LINK(leaf, face)) return GSL_SUCCESS;
-  assert(("Checking if a flip is necessary on an already flipped simplex",
-          !SIMP(leaf)->flipped));
+  if (!LINK(leaf, face)) return 0;
   assert(("Checking if a flip is necessary on a non-leaf simplex",
-          SIMP(leaf)->leaf_p));
+          LEAF(leaf)));
 
   simplex_index neighbor = LINK(leaf, face);
   /* The initial simplex should never be a neighbor */
   assert(neighbor);
   assert(("Inconsistency found in simplex tree structure, "
           "neighbor to leaf not a leaf",
-          SIMP(neighbor)->leaf_p));
+          LEAF(neighbor)));
 
   /* Find far point */
   int far;
@@ -261,10 +259,8 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       assert(("Presumably trying to flip a 1D simplex?", dim > 1));
 
       /* We need to "flip" this face. */
-      SIMP(leaf)->leaf_p = 0;
-      SIMP(neighbor)->leaf_p = 0;
-      SIMP(leaf)->flipped = 1;
-      SIMP(neighbor)->flipped = 1;
+      SIMP(leaf)->type = sub_d_type;
+      SIMP(neighbor)->type = sub_d_type;
 
       simplex_index *new_simplexes = tree->new_simplexes;
       simplex_index *old_neighbors1 = tree->old_neighbors1;
@@ -311,7 +307,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
       for (ismplx = 0; ismplx < dim; ismplx++)
         for (i = 0; i < dim+1; i++)
           {
-            if (SLINK(leaf, ismplx)->flipped) break;
+            if (!LEAF(LINK(leaf, ismplx))) break;
             if (!LINK(LINK(leaf, ismplx), i)) continue;
             delaunay(tree, LINK(leaf, ismplx), data, i, accel);
             /* check_leaf_nodes(tree, NULL); */

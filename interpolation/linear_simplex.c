@@ -45,8 +45,7 @@ simplex_tree_node_alloc(simplex_tree *tree)
   node->links = tree->n_links;
   tree->n_links += dim + 1;
 
-  node->leaf_p = 1;
-  node->flipped = 0;
+  node->type = leaf_type;
 
   return tree->n_simplexes++;
 }
@@ -355,7 +354,7 @@ _find_leaf(simplex_tree *tree, simplex_index node, gsl_matrix *data,
            gsl_vector *point,
            simplex_tree_accel *accel)
 {
-  if (SIMP(node)->leaf_p)
+  if (LEAF(node))
     {
       return node;
     }
@@ -363,7 +362,7 @@ _find_leaf(simplex_tree *tree, simplex_index node, gsl_matrix *data,
     {
       int i;
       int dim = tree->dim;
-      for (i = 0; i < 1 + dim - SIMP(node)->flipped; i++)
+      for (i = 0; i < N_CHILDREN(node); i++)
         {
           if (LINK(node, i)
               && contains_point(tree, LINK(node, i), data, point, accel))
@@ -386,8 +385,8 @@ insert_point(simplex_tree *tree, simplex_index leaf,
 {
   int i, j;
   if (!accel) accel = tree->accel;
-  assert(("You can only insert a point into a leaf", SIMP(leaf)->leaf_p));
-  SIMP(leaf)->leaf_p = 0;
+  assert(("You can only insert a point into a leaf", LEAF(leaf)));
+  SIMP(leaf)->type = sub_dplus1_type;
   int dim = tree->dim;
 
   simplex_index *new_simplexes = tree->new_simplexes;
@@ -416,7 +415,7 @@ insert_point(simplex_tree *tree, simplex_index leaf,
     {
       simplex_index neighbor = LINK(leaf, i);
       assert(("Inconsistency found in simplex tree structure",
-              !neighbor || SIMP(neighbor)->leaf_p));
+              !neighbor || LEAF(neighbor)));
       if (neighbor)
         assert(("Inconsistency found in simplex tree structure",
                 !point_in_simplex(tree, neighbor, POINT(leaf, i))));
@@ -460,8 +459,8 @@ insert_point(simplex_tree *tree, simplex_index leaf,
   /* Now fix the Delaunay condition */
   for (i = 0; i < dim+1; i++)
     {
-      /* Only check if the simplex hasn't already been flipped. */
-      if (SLINK(leaf, i)->flipped) continue;
+      /* Only check if the simplex is still a leaf. */
+      if (!LEAF(LINK(leaf, i))) continue;
       delaunay(tree, LINK(leaf, i), data, 0, accel);
     }
   check_delaunay(tree, data);
@@ -661,7 +660,7 @@ interp_point(simplex_tree *tree, simplex_index leaf,
   int i;
   int dim = tree->dim;
 
-  assert(("Interpolation must be on a leaf node", SIMP(leaf)->leaf_p));
+  assert(("Interpolation must be on a leaf node", LEAF(leaf)));
   calculate_bary_coords(tree, leaf, data, point, accel);
 
   double tot = 0;

@@ -20,18 +20,14 @@
 
 */
 
-int
-main()
+gsl_rng *rng;
+
+void
+trivial_test()
 {
   /* Trivial allocating and deallocating a triangulation */
   simplex_tree *tree = simplex_tree_alloc(2, 10);
   simplex_tree_free(tree);
-
-  /* Loading the data */
-#include "weather_data.c"
-  gsl_matrix_view all_data = gsl_matrix_view_array(data_vec, 50, 3);
-  gsl_vector_view response = gsl_matrix_column(&(all_data.matrix), 2);
-  gsl_matrix_view data = gsl_matrix_submatrix(&(all_data.matrix), 0, 0, 50, 2);
 
   double sphere_center[] = {0, 0};
   gsl_vector_view center_vector = gsl_vector_view_array(sphere_center, 2);
@@ -41,26 +37,26 @@ main()
   /* Test calculate hypersphere */
   tree = simplex_tree_alloc(2, 50);
   simplex_tree_init(tree, NULL, NULL, NULL, SIMPLEX_TREE_NOSTANDARDIZE, NULL);
-  calculate_hypersphere(tree, 0, &(data.matrix),
+  calculate_hypersphere(tree, 0, NULL,
                         &(center_vector.vector), &r2,
                         accel);
 
   /* Trivial leaf find */
-  double point_vector[2] = {-88, 41};
-  gsl_vector_view point = gsl_vector_view_array(point_vector, 2);
-  simplex_index leaf = find_leaf(tree, &(data.matrix), &(point.vector), NULL);
+  double data_array[4] = {-88, 41, -89, 41};
+  gsl_matrix_view data = gsl_matrix_view_array(data_array, 2, 2);
+  gsl_vector_view point = gsl_matrix_row(&(data.matrix), 0);
+  simplex_index leaf = find_leaf(tree, NULL, &(point.vector), NULL);
 
   /* Test trivial interpolation */
-  assert(0 == interp_point(tree, leaf, &(data.matrix), &(response.vector),
+  assert(0 == interp_point(tree, leaf, &(data.matrix), NULL,
                            &(point.vector), accel));
 
   /* Now things get interesting */
 
   /* Inserting new points */
-  gsl_vector_view new_point = gsl_matrix_row(&(data.matrix), 0);
-  insert_point(tree, leaf, &(data.matrix), &(new_point.vector), accel);
+  insert_point(tree, leaf, &(data.matrix), &(point.vector), accel);
 
-  assert(!SIMP(leaf)->leaf_p);
+  assert(!LEAF(leaf));
   assert(0 == POINT(LINK(leaf, 0), 0));
   assert(-2 == POINT(LINK(leaf, 0), 1));
   assert(-3 == POINT(LINK(leaf, 0), 2));
@@ -74,19 +70,103 @@ main()
   assert(1 == in_hypersphere(tree, 0, &(data.matrix), 0, accel));
 
   /* Finding the containing triangle */
+  point = gsl_matrix_row(&(data.matrix), 1);
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
   assert(0 == POINT(leaf, 0));
-  assert(-1 == POINT(leaf, 1));
+  assert(-2 == POINT(leaf, 1));
   assert(-3 == POINT(leaf, 2));
+
+  simplex_tree_free(tree);
+  simplex_tree_accel_free(accel);
+}
+
+void
+uniform_test(int min_dim, int max_dim)
+{
+  /* Try on points generated in arbitrary dimensionality */
+  int d;
+  for (d = min_dim; d <= max_dim; d++)
+    {
+      int dataset_size = pow(5, d);
+      gsl_matrix *data = gsl_matrix_alloc(dataset_size, d);
+      int i, j;
+      for (i = 0; i < dataset_size; i++)
+        for (j = 0; j < d; j++)
+          gsl_matrix_set(data, i, j, gsl_rng_uniform(rng)-.5);
+      simplex_tree *tree = simplex_tree_alloc(d, dataset_size);
+      simplex_tree_init(tree, data, NULL, NULL, SIMPLEX_TREE_NOSTANDARDIZE, NULL);
+      simplex_tree_free(tree);
+      gsl_matrix_free(data);
+    }
+}
+
+void
+gridded_test(int min_dim, int max_dim)
+{
+
+  /* Try on gridded points */
+  int n_grid = 4;
+  gsl_matrix *grid = gsl_matrix_alloc(n_grid * n_grid, 2);
+  {
+    int k = 0;
+    int i;
+    for (i = 0; i < n_grid; i++)
+      {
+        int j;
+        for (j = 0; j < n_grid; j++)
+          {
+            gsl_matrix_set(grid, k, 0, i);
+            gsl_matrix_set(grid, k, 1, j);
+            k++;
+          }
+      }
+  }
+
+  simplex_tree *tree = simplex_tree_alloc(2, n_grid * n_grid);
+  simplex_tree_init(tree, grid, NULL, NULL, 0, 0);
+
+  output_triangulation(tree, grid, NULL, 1,
+                       "/tmp/grid_tri.dat", NULL, NULL);
+
+  simplex_tree_free(tree);
+
+  /* tree = simplex_tree_alloc(2, n_grid * n_grid); */
+  /* simplex_tree_init(tree, grid, NULL, NULL, 0, 0); */
+
+  /* output_triangulation(tree, grid, NULL, 1, */
+  /*                      "/tmp/grid_tri.dat", NULL, NULL); */
+
+  /* simplex_tree_free(tree); */
+  gsl_matrix_free(grid);
+}
+
+/* Try this on a few real datasets */
+void
+scattered_data()
+{
+  /* Loading the data */
+#include "weather_data.c"
+  gsl_matrix_view all_data = gsl_matrix_view_array(data_vec, 50, 3);
+  gsl_vector_view response = gsl_matrix_column(&(all_data.matrix), 2);
+  gsl_matrix_view data = gsl_matrix_submatrix(&(all_data.matrix), 0, 0, 50, 2);
+
+  simplex_tree_accel *accel = simplex_tree_accel_alloc(2);
+
+  simplex_tree *tree = simplex_tree_alloc(2, 50);
+  simplex_tree_init(tree, NULL, NULL, NULL, SIMPLEX_TREE_NOSTANDARDIZE, NULL);
+  simplex_index leaf;
 
   /* Building simplex trees */
   int i;
-  for (i = 1; i < 50; i++)
+  for (i = 0; i < 50; i++)
     {
-      new_point = gsl_matrix_row(&(data.matrix), i);
+      gsl_vector_view new_point = gsl_matrix_row(&(data.matrix), i);
       leaf = find_leaf(tree, &(data.matrix), &(new_point.vector), accel);
       insert_point(tree, leaf, &(data.matrix), &(new_point.vector), accel);
     }
+
+  double data_array[4] = {-88, 41};
+  gsl_vector_view point = gsl_vector_view_array(data_array, 2);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
   double res = interp_point(tree, leaf, &(data.matrix), &(response.vector),
@@ -99,10 +179,7 @@ main()
   double min[] = {-89.6763, 40.9479};
   double max[] = {-86.303, 43.20};
 
-  gsl_rng_env_setup();
-  gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
   simplex_tree_init(tree, &(data.matrix), NULL, NULL, 0, rng);
-  gsl_rng_free(rng);
 
   leaf = find_leaf(tree, &(data.matrix), &(point.vector), accel);
   res = interp_point(tree, leaf, &(data.matrix), &(response.vector),
@@ -134,7 +211,7 @@ main()
         }
     }
 
-  output_triangulation(tree, &(data.matrix), &(response.vector),
+  output_triangulation(tree, &(data.matrix), &(response.vector), 0,
                        "/tmp/lines.dat", "/tmp/points.dat", "/tmp/circles.dat");
 
   FILE *plot = fopen("/tmp/plot.dat", "w");
@@ -179,9 +256,21 @@ main()
                    '/tmp/lines.dat' w lines
 
   */
-
   gsl_matrix_free(grid);
   simplex_tree_free(tree);
   simplex_tree_accel_free(accel);
+}
+
+int
+main()
+{
+  gsl_rng_env_setup();
+  rng = gsl_rng_alloc(gsl_rng_default);
+
+  trivial_test();
+  scattered_data();
+  uniform_test(3, 3);
+  gridded_test(2, 2);
+  gsl_rng_free(rng);
   return 0;
 }

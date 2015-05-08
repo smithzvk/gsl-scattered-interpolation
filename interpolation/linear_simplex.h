@@ -53,7 +53,7 @@ typedef struct simplex_tree_struct
   simplex_index *old_neighbors1;
   simplex_index *old_neighbors2;
   int *left_out;
-  int *tmp_points;
+  int *tmp_points1;
   gsl_vector *tmp_vec1, *tmp_vec2;
   gsl_matrix *tmp_mat;
 } simplex_tree;
@@ -139,7 +139,6 @@ simplex_index _find_leaf(simplex_tree *tree, simplex_index node,
 int insert_point(simplex_tree *tree, simplex_index leaf,
                  gsl_matrix *data, gsl_vector *point,
                  simplex_tree_accel *accel);
-
 
 int in_hypersphere(simplex_tree *tree, simplex_index node,
                    gsl_matrix *data,

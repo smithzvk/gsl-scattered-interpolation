@@ -137,7 +137,7 @@ _check_delaunay(simplex_tree *tree, simplex_index node)
   int i;
   gsl_vector *x0 = gsl_vector_alloc(tree->dim);
   double r2;
-  int *points = tree->tmp_points;
+  int *points = tree->tmp_points1;
   for (i = 0; i < tree->dim+1; i++)
       points[i] = POINT(node, i);
   calculate_hypersphere_points(tree, points, gdata, x0, &r2, tree->accel);
@@ -230,7 +230,7 @@ _output_triangulation(simplex_tree *tree, simplex_index node)
     {
       gsl_vector *x0 = gsl_vector_alloc(tree->dim);
       double r2;
-      int *points = tree->tmp_points;
+      int *points = tree->tmp_points1;
       for (i = 0; i < tree->dim+1; i++)
         points[i] = POINT(node, i);
       calculate_hypersphere_points(tree, points, gdata, x0, &r2, tree->accel);

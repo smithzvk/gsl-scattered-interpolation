@@ -100,7 +100,7 @@ simplex_tree_alloc(int dim, int n_points)
   tree->tmp_vec1 = gsl_vector_alloc(dim);
   tree->tmp_vec2 = gsl_vector_alloc(dim);
   tree->tmp_mat = gsl_matrix_alloc(dim, dim);
-  tree->tmp_points = malloc((dim+1) * sizeof(int));
+  tree->tmp_points1 = malloc((dim+1) * sizeof(int));
 
   return tree;
 }
@@ -126,7 +126,7 @@ simplex_tree_free(simplex_tree *tree)
   gsl_vector_free(tree->tmp_vec1);
   gsl_vector_free(tree->tmp_vec2);
   gsl_matrix_free(tree->tmp_mat);
-  free(tree->tmp_points);
+  free(tree->tmp_points1);
 
   free(tree);
 }
@@ -475,7 +475,7 @@ in_hypersphere(simplex_tree *tree, simplex_index node,
                int idx, simplex_tree_accel *accel)
 {
   int i;
-  int *points = tree->tmp_points;
+  int *points = tree->tmp_points1;
   for (i = 0; i < tree->dim+1; i++)
       points[i] = POINT(node, i);
   return in_hypersphere_points(tree, points, data, idx, accel);
@@ -520,7 +520,7 @@ calculate_hypersphere(simplex_tree *tree, simplex_index node,
                       simplex_tree_accel *accel)
 {
   int i;
-  int *points = tree->tmp_points;
+  int *points = tree->tmp_points1;
   for (i = 0; i < tree->dim+1; i++)
       points[i] = POINT(node, i);
   return calculate_hypersphere_points(tree, points, data, x0, r2, accel);

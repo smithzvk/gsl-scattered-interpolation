@@ -180,6 +180,7 @@ _output_triangulation(simplex_tree *tree, simplex_index node)
             {
               int i1 = POINT(node, i);
               int i2 = POINT(node, j);
+              if (i1 < 0 || i2 < 0) continue;
 
               double r1, r2;
               gsl_vector_view p1 = DATA_POINT(gdata, i1);

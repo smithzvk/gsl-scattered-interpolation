@@ -27,7 +27,7 @@ set_left_out(simplex_tree *tree, int face, int *left_out)
           /* "face" is the offset and left_out[ismplx] defines the normal */
           if (i == face) continue;
           int idx_on_face = i;
-          if (idx_on_face > face) idx_on_face--;
+          if (i > face) idx_on_face--;
           if (idx_on_face == ismplx)
             left_out[ismplx] = i;
         }
@@ -58,7 +58,7 @@ flippable(simplex_tree *tree, gsl_matrix *data,
           /* "face" is the offset and left_out[ismplx] defines the normal */
           if (i == face) continue;
           int idx_on_face = i;
-          if (idx_on_face > face) idx_on_face--;
+          if (i > face) idx_on_face--;
           if (idx_on_face == ismplx) continue;
           if (idx_on_face > ismplx) idx_on_face--;
 
@@ -135,7 +135,7 @@ set_points(simplex_tree *tree,
       /* We already included "face" */
       if (j == face) continue;
       int idx_on_face = j;
-      if (idx_on_face > face) idx_on_face--;
+      if (j > face) idx_on_face--;
 
       /* We need to exclude one point of the old simplex */
       if (idx_on_face == ismplx) continue;

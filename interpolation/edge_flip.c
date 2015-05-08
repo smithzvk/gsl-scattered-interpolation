@@ -299,7 +299,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
         }
       LINK(leaf, dim) = neighbor;
       LINK(neighbor, dim) = leaf;
-      output_triangulation(tree, data, NULL,
+      output_triangulation(tree, data, NULL, 1,
                            "/tmp/grid_tri.dat", NULL, NULL);
 
       /* Now, recursively check the new external faces as they could now also
@@ -311,7 +311,7 @@ delaunay(simplex_tree *tree, simplex_index leaf,
             if (!LINK(LINK(leaf, ismplx), i)) continue;
             delaunay(tree, LINK(leaf, ismplx), data, i, accel);
             /* check_leaf_nodes(tree, NULL); */
-            output_triangulation(tree, data, NULL,
+            output_triangulation(tree, data, NULL, 1,
                                  "/tmp/grid_tri.dat", NULL, NULL);
           }
     }

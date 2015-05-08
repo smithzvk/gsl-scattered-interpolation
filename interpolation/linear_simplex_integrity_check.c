@@ -15,6 +15,8 @@ FILE *fcircles;
 gsl_matrix *gdata;
 gsl_vector *gresponse;
 
+int g_standardize_output;
+
 struct node_list *
 cons(simplex_index car, struct node_list *cdr)
 {
@@ -201,18 +203,24 @@ _output_triangulation(simplex_tree *tree, simplex_index node)
               int k;
               for (k = 0; k < tree->dim; k++)
                 {
-                  fprintf(flines, "%g ",
-                          gsl_vector_get(tree->scale, k)
-                          * (gsl_vector_get(&(p1.vector), k)
-                             - gsl_vector_get(tree->shift, k)));
+                  if (g_standardize_output)
+                    fprintf(flines, "%g ",
+                            gsl_vector_get(tree->scale, k)
+                            * (gsl_vector_get(&(p1.vector), k)
+                               - gsl_vector_get(tree->shift, k)));
+                  else
+                    fprintf(flines, "%g ", gsl_vector_get(&(p1.vector), k));
                 }
               fprintf(flines, "%g\n", r1);
               for (k = 0; k < tree->dim; k++)
                 {
-                  fprintf(flines, "%g ",
-                          gsl_vector_get(tree->scale, k)
-                          * (gsl_vector_get(&(p2.vector), k)
-                             - gsl_vector_get(tree->shift, k)));
+                  if (g_standardize_output)
+                    fprintf(flines, "%g ",
+                            gsl_vector_get(tree->scale, k)
+                            * (gsl_vector_get(&(p2.vector), k)
+                               - gsl_vector_get(tree->shift, k)));
+                  else
+                    fprintf(flines, "%g ", gsl_vector_get(&(p2.vector), k));
                 }
               fprintf(flines, "%g\n\n\n", r2);
             }
@@ -236,11 +244,13 @@ _output_triangulation(simplex_tree *tree, simplex_index node)
 
 void
 output_triangulation(simplex_tree *tree, gsl_matrix *data, gsl_vector *response,
+                     int standardize_output,
                      char *lines_filename, char *points_filename,
                      char *circles_filename)
 {
   flines = NULL;
   fcircles = NULL;
+  g_standardize_output = standardize_output;
   if (lines_filename) flines = fopen(lines_filename, "w");
   if (circles_filename) fcircles = fopen(circles_filename, "w");
 

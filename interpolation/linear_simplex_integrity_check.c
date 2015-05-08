@@ -153,7 +153,7 @@ _check_delaunay(simplex_tree *tree, simplex_index node)
       gsl_vector_sub(pp, x0);
       double mag2 = dnrm22(pp);
       assert(("Point found that violates the Delaunay condition",
-              mag2 > r2 * (1 - 10*GSL_DBL_EPSILON)));
+              mag2 > r2 * (1 - GSL_SQRT_DBL_EPSILON)));
     }
   gsl_vector_free(pp);
   gsl_vector_free(x0);

@@ -355,27 +355,50 @@ _find_leaf(simplex_tree *tree, simplex_index node, gsl_matrix *data,
            simplex_tree_accel *accel)
 {
   if (LEAF(node))
-    {
-      return node;
-    }
+    return node;
   else
     {
       int i;
       int dim = tree->dim;
+      int best_match = 0;
+      double best_worst = -1;
       for (i = 0; i < N_CHILDREN(node); i++)
         {
+          double worst_coord = 0;
           if (LINK(node, i)
               && contains_point(tree, LINK(node, i), data, point, accel))
             {
               return _find_leaf(tree, LINK(node, i), data, point, accel);
             }
+          else
+            {
+              double tot = 0;
+              int j;
+              for (j = 0; j < dim; j++)
+                {
+                  double coord = gsl_vector_get(accel->coords, j);
+                  tot += coord;
+                  if ((coord < 0) && (-coord > worst_coord))
+                      worst_coord = -coord;
+                  else if ((coord > 1) && (coord - 1 > worst_coord))
+                      worst_coord = coord - 1;
+                }
+              if ((tot < 0) && (-tot > worst_coord))
+                  worst_coord = -tot;
+              else if ((tot > 1) && (tot - 1 > worst_coord))
+                  worst_coord = tot - 1;
+
+              if ((best_worst < 0) || (worst_coord < best_worst))
+                {
+                  best_worst = worst_coord;
+                  best_match = i;
+                }
+            }
         }
+      /* We couldn't find a matching simplex presumably due to numerical
+         precision.  We will choose the best match that we have found so far. */
+      return _find_leaf(tree, LINK(node, best_match), data, point, accel);
     }
-  /* We should never get here.  What if something falls through the cracks?
-     This can happen if the point lies on a face.  Perhaps I could find the
-     simplex that is the closest match and use that if none of them match.  This
-     would be a useful fall-back. */
-  assert(("No subsimplex contains point, floating point precision issue?", 0));
 }
 
 int
